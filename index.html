@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>培训考核系统</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     /* 页面切换 fade 动画 */
     .page { display: none; opacity: 0; transition: opacity 0.3s ease; }
@@ -176,7 +176,17 @@
 // ============================================
 const SUPABASE_URL = 'https://qdipqdysblxckgkcpnqj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXBxZHlzYmx4Y2tna2NwbnFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzMDA0NDIsImV4cCI6MjA4NTg3NjQ0Mn0.x0_AQz7tcfvt6s3CdyHfnsBFFDkY32IA1W-7eidxvXs';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let sb;
+try {
+  const mod = window.supabase;
+  sb = (mod.createClient || mod.default?.createClient)(SUPABASE_URL, SUPABASE_ANON_KEY);
+} catch(e) {
+  console.error('Supabase SDK 加载失败:', e);
+  document.addEventListener('DOMContentLoaded', () => {
+    document.body.innerHTML = '<div style="padding:40px;text-align:center;color:red;">Supabase SDK 加载失败，请刷新页面重试</div>';
+  });
+}
+const supabase = sb;
 
 // ============================================
 // 全局状态
@@ -253,7 +263,7 @@ async function handleLogin() {
     navigateTo('list');
   } catch (err) {
     console.error('登录失败:', err);
-    showLoginError('登录失败，请重试: ' + (err.message || '网络错误'));
+    showLoginError('登录失败: ' + (err.message || err.code || JSON.stringify(err)));
   } finally {
     btn.disabled = false;
     btn.textContent = '进入系统';
