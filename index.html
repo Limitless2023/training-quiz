@@ -4,853 +4,712 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>培训考核系统</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    /* 页面切换 fade 动画 */
-    .page { display: none; opacity: 0; transition: opacity 0.3s ease; }
-    .page.active { display: block; opacity: 1; }
-    /* 分数环动画 */
-    @keyframes scoreRing { from { stroke-dashoffset: 283; } }
-    .score-ring { animation: scoreRing 1s ease-out; }
-    /* 进度条动画 */
-    .progress-bar { transition: width 0.3s ease; }
-    /* 排行榜展开 */
-    .leaderboard-panel { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
-    .leaderboard-panel.open { max-height: 600px; }
-    /* 解析展开 */
-    .analysis-panel { max-height: 0; overflow: hidden; transition: max-height 0.5s ease; }
-    .analysis-panel.open { max-height: 5000px; }
-  </style>
-</head>
-<body class="bg-gray-50 min-h-screen">
-
-  <!-- ========== 登录页 ========== -->
-  <div id="page-login" class="page active">
-    <div class="min-h-screen flex items-center justify-center px-4">
-      <div class="w-full max-w-sm">
-        <div class="text-center mb-8">
-          <div class="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-          </div>
-          <h1 class="text-2xl font-bold text-gray-900">培训考核系统</h1>
-          <p class="text-gray-500 mt-1">请输入信息开始考核</p>
-        </div>
-        <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">姓名</label>
-            <input id="login-name" type="text" placeholder="请输入你的姓名"
-              class="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">部门</label>
-            <select id="login-dept"
-              class="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition bg-white">
-              <option value="">请选择部门</option>
-              <option>产品部</option>
-              <option>研发部</option>
-              <option>售前部</option>
-              <option>销售部</option>
-              <option>交付部</option>
-              <option>客户成功部</option>
-              <option>市场部</option>
-              <option>法务部</option>
-              <option>财务部</option>
-              <option>其他</option>
-            </select>
-          </div>
-          <button id="btn-login" onclick="handleLogin()"
-            class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition active:scale-[0.98]">
-            进入系统
-          </button>
-          <div id="login-error" class="text-red-500 text-sm text-center hidden"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ========== 考核列表页 ========== -->
-  <div id="page-list" class="page">
-    <!-- 顶部导航 -->
-    <div class="bg-white border-b sticky top-0 z-10">
-      <div class="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-        <h1 class="text-lg font-bold text-gray-900">培训考核</h1>
-        <div class="flex items-center gap-3">
-          <span id="user-badge" class="text-sm text-gray-500"></span>
-          <button onclick="handleLogout()" class="text-sm text-indigo-600 hover:text-indigo-800">退出</button>
-        </div>
-      </div>
-    </div>
-    <div class="max-w-2xl mx-auto px-4 py-6">
-      <div id="quiz-list" class="space-y-4">
-        <!-- 动态填充 -->
-      </div>
-      <div id="quiz-list-empty" class="hidden text-center py-20 text-gray-400">
-        <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 5h6"/>
-        </svg>
-        <p>暂无考核</p>
-      </div>
-      <div id="quiz-list-loading" class="text-center py-20 text-gray-400">
-        <div class="inline-block w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-        <p class="mt-3">加载中...</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- ========== 答题页 ========== -->
-  <div id="page-quiz" class="page">
-    <div class="bg-white border-b sticky top-0 z-10">
-      <div class="max-w-2xl mx-auto px-4 py-3">
-        <div class="flex items-center justify-between mb-2">
-          <button onclick="confirmExit()" class="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-            退出
-          </button>
-          <span id="quiz-title-bar" class="text-sm font-medium text-gray-900 truncate mx-4"></span>
-          <span id="quiz-progress-text" class="text-sm text-gray-500 whitespace-nowrap"></span>
-        </div>
-        <div class="w-full bg-gray-200 rounded-full h-2">
-          <div id="quiz-progress-bar" class="progress-bar bg-indigo-600 h-2 rounded-full" style="width:0%"></div>
-        </div>
-      </div>
-    </div>
-    <div class="max-w-2xl mx-auto px-4 py-6">
-      <div id="questions-container" class="space-y-6">
-        <!-- 动态填充 -->
-      </div>
-      <div class="mt-8 pb-8">
-        <button id="btn-submit" onclick="handleSubmit()"
-          class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium text-lg transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
-          提交答卷
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ========== 结果页 ========== -->
-  <div id="page-result" class="page">
-    <div class="max-w-2xl mx-auto px-4 py-8">
-      <!-- 分数环 -->
-      <div class="text-center mb-8">
-        <div class="relative inline-block">
-          <svg width="160" height="160" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="45" fill="none" stroke="#e5e7eb" stroke-width="8"/>
-            <circle id="score-circle" cx="50" cy="50" r="45" fill="none" stroke-width="8"
-              stroke-linecap="round" transform="rotate(-90 50 50)"
-              stroke-dasharray="283" stroke-dashoffset="283" class="score-ring"/>
-          </svg>
-          <div class="absolute inset-0 flex flex-col items-center justify-center">
-            <span id="score-number" class="text-4xl font-bold"></span>
-            <span class="text-sm text-gray-500">分</span>
-          </div>
-        </div>
-        <div id="result-status" class="mt-4 text-xl font-bold"></div>
-        <div id="result-stats" class="mt-2 text-gray-500"></div>
-      </div>
-      <!-- 操作按钮 -->
-      <div class="flex gap-3 mb-6">
-        <button onclick="navigateTo('list')"
-          class="flex-1 py-3 border-2 border-indigo-600 text-indigo-600 rounded-xl font-medium hover:bg-indigo-50 transition">
-          返回列表
-        </button>
-        <button onclick="toggleAnalysis()"
-          class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition" id="btn-analysis">
-          查看解析
-        </button>
-      </div>
-      <!-- 解析面板 -->
-      <div id="analysis-panel" class="analysis-panel">
-        <div id="analysis-content" class="space-y-4 pb-8">
-          <!-- 动态填充 -->
-        </div>
-      </div>
-    </div>
-  </div>
-
-<script>
-// ============================================
-// Supabase 初始化
-// ============================================
-const SUPABASE_URL = 'https://qdipqdysblxckgkcpnqj.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXBxZHlzYmx4Y2tna2NwbnFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzMDA0NDIsImV4cCI6MjA4NTg3NjQ0Mn0.x0_AQz7tcfvt6s3CdyHfnsBFFDkY32IA1W-7eidxvXs';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-window.onerror = function(msg, url, line) { alert('JS错误: ' + msg + ' (行' + line + ')'); };
-
-// ============================================
-// 全局状态
-// ============================================
-let currentUser = null;       // { id, name, department }
-let currentQuiz = null;       // 当前考核
-let currentQuestions = [];    // 当前题目列表
-let userAnswers = {};         // 用户答案 { questionId: answer }
-
-// ============================================
-// 页面路由
-// ============================================
-function navigateTo(page, data) {
-  document.querySelectorAll('.page').forEach(p => {
-    p.classList.remove('active');
-  });
-  const target = document.getElementById('page-' + page);
-  if (target) {
-    // 短暂延迟以触发 fade 动画
-    setTimeout(() => target.classList.add('active'), 10);
-  }
-  // 页面初始化
-  switch(page) {
-    case 'login': break;
-    case 'list': loadQuizList(); break;
-    case 'quiz': loadQuiz(data); break;
-    case 'result': showResult(data); break;
-  }
-  // 滚动到顶部
-  window.scrollTo(0, 0);
+:root {
+  --olive: #5c6b50;
+  --olive-dark: #4a5740;
+  --olive-light: #e8ebe5;
+  --olive-bg: #f0f2ed;
+  --cream: #fdfdf8;
+  --success: #3d8b37;
+  --danger: #c53030;
+  --warning: #b7791f;
+  --radius: 12px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Inter', 'Noto Sans SC', -apple-system, sans-serif;
+  background: var(--cream);
+  color: #18181b;
+  line-height: 1.6;
+  min-height: 100vh;
 }
 
-// ============================================
-// 登录逻辑
-// ============================================
+/* Pages */
+.page { display:none; opacity:0; transition: opacity .3s ease; }
+.page.active { display:block; opacity:1; }
+
+/* Container */
+.container { max-width: 720px; margin: 0 auto; padding: 0 20px; }
+
+/* Nav bar */
+.navbar {
+  position: sticky; top:0; z-index:100;
+  background: rgba(253,253,248,.92);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid #e4e4e7;
+  padding: 14px 20px;
+}
+.navbar-inner { max-width:720px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; }
+.navbar .brand { font-weight:600; font-size:15px; color:#18181b; display:flex; align-items:center; gap:8px; }
+.navbar .brand svg { width:28px; height:28px; }
+.navbar .user-info { font-size:13px; color:#71717a; display:flex; align-items:center; gap:12px; }
+.navbar .logout { color:var(--olive); font-weight:500; cursor:pointer; border:none; background:none; font-size:13px; }
+.navbar .logout:hover { color:var(--olive-dark); }
+
+/* Buttons */
+.btn {
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:12px 24px; border:none; border-radius:8px;
+  font-size:15px; font-weight:500; cursor:pointer; transition:all .2s;
+  font-family:inherit;
+}
+.btn-primary { background:var(--olive); color:#fff; width:100%; }
+.btn-primary:hover { background:var(--olive-dark); }
+.btn-primary:disabled { opacity:.5; cursor:not-allowed; }
+.btn-outline { background:#fff; color:var(--olive); border:1.5px solid var(--olive); }
+.btn-outline:hover { background:var(--olive-light); }
+.btn-sm { padding:8px 16px; font-size:13px; }
+
+/* Cards */
+.card {
+  background:#fff; border-radius:var(--radius);
+  border:1px solid #e4e4e7; padding:24px;
+  transition: all .2s;
+}
+.card-hover:hover { border-color:var(--olive); box-shadow:0 4px 12px rgba(92,107,80,.1); transform:translateY(-1px); }
+
+/* Forms */
+.form-label { display:block; font-size:13px; font-weight:500; color:#52525b; margin-bottom:6px; }
+.form-input, .form-select {
+  width:100%; padding:12px 16px;
+  border:1.5px solid #e4e4e7; border-radius:8px;
+  font-size:15px; font-family:inherit; background:#fff;
+  transition: border-color .2s;
+}
+.form-input:focus, .form-select:focus {
+  outline:none; border-color:var(--olive);
+  box-shadow:0 0 0 3px rgba(92,107,80,.12);
+}
+
+/* Badge */
+.badge {
+  display:inline-flex; align-items:center; gap:4px;
+  padding:4px 10px; border-radius:20px;
+  font-size:12px; font-weight:500;
+}
+.badge-olive { background:var(--olive-light); color:var(--olive); }
+.badge-success { background:#dcfce7; color:#166534; }
+.badge-danger { background:#fef2f2; color:#991b1b; }
+
+/* Progress */
+.progress-track { width:100%; height:6px; background:#e4e4e7; border-radius:3px; overflow:hidden; }
+.progress-fill { height:100%; background:var(--olive); border-radius:3px; transition:width .3s; }
+
+/* Options */
+.option-item {
+  display:flex; align-items:flex-start; gap:12px;
+  padding:14px 16px; border:1.5px solid #e4e4e7; border-radius:10px;
+  cursor:pointer; transition:all .15s; background:#fff;
+}
+.option-item:hover { border-color:#a1a1aa; background:#fafafa; }
+.option-item.selected { border-color:var(--olive); background:var(--olive-light); }
+.option-item.correct { border-color:var(--success); background:#f0fdf4; }
+.option-item.wrong { border-color:var(--danger); background:#fef2f2; }
+.option-item input[type="radio"], .option-item input[type="checkbox"] {
+  accent-color:var(--olive); margin-top:2px; width:18px; height:18px; flex-shrink:0;
+}
+
+/* TF Buttons */
+.tf-btn {
+  flex:1; padding:16px; border:1.5px solid #e4e4e7; border-radius:10px;
+  background:#fff; font-size:16px; font-weight:500; cursor:pointer;
+  transition:all .15s; font-family:inherit;
+}
+.tf-btn:hover { border-color:#a1a1aa; }
+.tf-btn.selected { border-color:var(--olive); background:var(--olive-light); color:var(--olive-dark); }
+
+/* Explanation */
+.explanation {
+  margin-top:12px; padding:12px 16px;
+  background:#fffbeb; border-left:3px solid var(--warning);
+  border-radius:0 8px 8px 0; font-size:13px; color:#92400e;
+}
+
+/* Source */
+.source-panel {
+  margin-top:8px; padding:12px 16px;
+  background:var(--olive-bg); border-left:3px solid var(--olive);
+  border-radius:0 8px 8px 0; font-size:13px; color:var(--olive-dark);
+}
+.source-panel summary { cursor:pointer; font-weight:500; }
+.source-panel .content { margin-top:8px; white-space:pre-wrap; line-height:1.7; color:#52525b; max-height:200px; overflow-y:auto; }
+
+/* Score ring */
+.score-ring-wrap { position:relative; display:inline-block; }
+.score-ring-wrap .center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+@keyframes ringDraw { from { stroke-dashoffset: 283; } }
+.ring-anim { animation: ringDraw 1s ease-out; }
+
+/* Leaderboard */
+.lb-row { display:flex; align-items:center; padding:10px 0; border-bottom:1px solid #f4f4f5; }
+.lb-row:last-child { border-bottom:none; }
+.lb-rank { width:28px; text-align:center; font-weight:700; font-size:14px; margin-right:12px; flex-shrink:0; }
+
+/* Analysis toggle */
+.analysis-wrap { max-height:0; overflow:hidden; transition:max-height .5s ease; }
+.analysis-wrap.open { max-height:99999px; }
+
+/* Error */
+.error-msg { color:var(--danger); font-size:13px; text-align:center; margin-top:12px; }
+
+/* Responsive */
+@media(max-width:640px) {
+  .container { padding:0 16px; }
+  .card { padding:16px; }
+}
+  </style>
+</head>
+<body>
+
+<!-- ===== LOGIN ===== -->
+<div id="page-login" class="page active">
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="width:100%;max-width:380px;">
+      <div style="text-align:center;margin-bottom:32px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;background:var(--olive);border-radius:14px;margin-bottom:16px;">
+          <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="8" fill="none"/><path d="M8 16L14 10L20 16L14 22L8 16Z" fill="white"/><path d="M14 16L20 10L26 16L20 22L14 16Z" fill="white" fill-opacity="0.6"/></svg>
+        </div>
+        <h1 style="font-size:24px;font-weight:600;color:#18181b;">培训考核系统</h1>
+        <p style="font-size:14px;color:#71717a;margin-top:4px;">请输入信息开始考核</p>
+      </div>
+      <div class="card">
+        <div style="margin-bottom:16px;">
+          <label class="form-label">姓名</label>
+          <input id="login-name" type="text" class="form-input" placeholder="请输入你的姓名">
+        </div>
+        <div style="margin-bottom:20px;">
+          <label class="form-label">部门</label>
+          <select id="login-dept" class="form-select">
+            <option value="">请选择部门</option>
+            <option>产品部</option><option>研发部</option><option>售前部</option>
+            <option>销售部</option><option>交付部</option><option>客户成功部</option>
+            <option>市场部</option><option>法务部</option><option>财务部</option><option>其他</option>
+          </select>
+        </div>
+        <button id="btn-login" class="btn btn-primary">进入系统</button>
+        <div id="login-error" class="error-msg" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== QUIZ LIST ===== -->
+<div id="page-list" class="page">
+  <div class="navbar">
+    <div class="navbar-inner">
+      <div class="brand">
+        <svg viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="8" fill="#5c6b50"/><path d="M8 16L14 10L20 16L14 22L8 16Z" fill="white"/><path d="M14 16L20 10L26 16L20 22L14 16Z" fill="white" fill-opacity="0.6"/></svg>
+        培训考核
+      </div>
+      <div class="user-info">
+        <span id="user-badge"></span>
+        <button class="logout" onclick="handleLogout()">退出</button>
+      </div>
+    </div>
+  </div>
+  <div class="container" style="padding-top:24px;padding-bottom:40px;">
+    <div id="quiz-list" style="display:flex;flex-direction:column;gap:16px;"></div>
+    <div id="quiz-list-empty" style="display:none;text-align:center;padding:60px 0;color:#a1a1aa;">
+      <p style="font-size:15px;">暂无考核</p>
+    </div>
+    <div id="quiz-list-loading" style="text-align:center;padding:60px 0;color:#a1a1aa;">
+      <div style="display:inline-block;width:32px;height:32px;border:3px solid var(--olive-light);border-top-color:var(--olive);border-radius:50%;animation:spin 1s linear infinite;"></div>
+      <p style="margin-top:12px;font-size:14px;">加载中...</p>
+    </div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+  </div>
+</div>
+
+<!-- ===== QUIZ ===== -->
+<div id="page-quiz" class="page">
+  <div class="navbar">
+    <div class="navbar-inner">
+      <button class="btn btn-outline btn-sm" onclick="confirmExit()">← 退出</button>
+      <span id="quiz-title-bar" style="font-size:14px;font-weight:600;color:#18181b;"></span>
+      <span id="quiz-progress-text" style="font-size:13px;color:#71717a;"></span>
+    </div>
+    <div style="max-width:720px;margin:8px auto 0;">
+      <div class="progress-track"><div id="quiz-progress-bar" class="progress-fill" style="width:0%"></div></div>
+    </div>
+  </div>
+  <div class="container" style="padding-top:20px;padding-bottom:40px;">
+    <div id="questions-container" style="display:flex;flex-direction:column;gap:20px;"></div>
+    <div style="margin-top:24px;">
+      <button id="btn-submit" class="btn btn-primary" disabled style="font-size:16px;padding:14px;">提交答卷</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== RESULT ===== -->
+<div id="page-result" class="page">
+  <div class="container" style="padding-top:40px;padding-bottom:40px;">
+    <div class="card" style="text-align:center;">
+      <div class="score-ring-wrap" style="margin-bottom:20px;">
+        <svg width="140" height="140" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="45" fill="none" stroke="#e4e4e7" stroke-width="7"/>
+          <circle id="score-circle" cx="50" cy="50" r="45" fill="none" stroke-width="7"
+            stroke-linecap="round" transform="rotate(-90 50 50)"
+            stroke-dasharray="283" stroke-dashoffset="283" class="ring-anim"/>
+        </svg>
+        <div class="center">
+          <span id="score-number" style="font-size:36px;font-weight:700;"></span>
+          <span style="font-size:12px;color:#71717a;">分</span>
+        </div>
+      </div>
+      <div id="result-status" style="font-size:18px;font-weight:700;margin-bottom:4px;"></div>
+      <div id="result-stats" style="font-size:14px;color:#71717a;margin-bottom:24px;"></div>
+      <div style="display:flex;gap:12px;">
+        <button class="btn btn-outline" style="flex:1;" onclick="navigateTo('list')">返回列表</button>
+        <button class="btn btn-primary" style="flex:1;" id="btn-analysis" onclick="toggleAnalysis()">查看解析</button>
+      </div>
+    </div>
+    <div id="analysis-wrap" class="analysis-wrap" style="margin-top:16px;">
+      <div id="analysis-content" style="display:flex;flex-direction:column;gap:12px;padding-bottom:20px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+// ============ Init ============
+const SUPABASE_URL = 'https://qdipqdysblxckgkcpnqj.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXBxZHlzYmx4Y2tna2NwbnFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzMDA0NDIsImV4cCI6MjA4NTg3NjQ0Mn0.x0_AQz7tcfvt6s3CdyHfnsBFFDkY32IA1W-7eidxvXs';
+
+let db = null;
+let currentUser = null;
+let currentQuiz = null;
+let currentQuestions = [];
+let userAnswers = {};
+let lastResultData = null;
+
+function initSupabase() {
+  try {
+    if (window.supabase && window.supabase.createClient) {
+      db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      return true;
+    }
+  } catch(e) { console.error(e); }
+  return false;
+}
+
+// ============ Router ============
+function navigateTo(page, data) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  setTimeout(() => {
+    const el = document.getElementById('page-' + page);
+    if (el) el.classList.add('active');
+  }, 20);
+  window.scrollTo(0,0);
+  if (page === 'list') loadQuizList();
+  if (page === 'quiz' && data) loadQuiz(data);
+  if (page === 'result' && data) { lastResultData = data; showResult(data); }
+}
+
+// ============ Login ============
+document.addEventListener('DOMContentLoaded', function() {
+  if (!initSupabase()) {
+    showLoginErr('Supabase SDK 加载失败，请刷新页面');
+    return;
+  }
+  
+  document.getElementById('btn-login').addEventListener('click', handleLogin);
+  document.getElementById('login-name').addEventListener('keydown', function(e) { if(e.key==='Enter') handleLogin(); });
+
+  // Auto-login
+  const saved = localStorage.getItem('quiz_user');
+  if (saved) {
+    try {
+      currentUser = JSON.parse(saved);
+      document.getElementById('user-badge').textContent = currentUser.name + ' · ' + currentUser.department;
+      navigateTo('list');
+    } catch(e) { navigateTo('login'); }
+  }
+});
+
 async function handleLogin() {
   const name = document.getElementById('login-name').value.trim();
   const dept = document.getElementById('login-dept').value;
-  const errorEl = document.getElementById('login-error');
-  errorEl.textContent = '正在连接服务器...';
-  errorEl.classList.remove('hidden');
+  hideLoginErr();
 
-  if (!name) { showLoginError('请输入姓名'); return; }
-  if (!dept) { showLoginError('请选择部门'); return; }
+  if (!name) { showLoginErr('请输入姓名'); return; }
+  if (!dept) { showLoginErr('请选择部门'); return; }
 
   const btn = document.getElementById('btn-login');
   btn.disabled = true;
   btn.textContent = '登录中...';
 
   try {
-    // 尝试查找已有用户
-    let { data: profile, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('name', name)
-      .eq('department', dept)
+    let { data: profile, error } = await db
+      .from('profiles').select('*')
+      .eq('name', name).eq('department', dept)
       .maybeSingle();
-
     if (error) throw error;
 
-    // 如果不存在则创建
     if (!profile) {
-      const { data: newProfile, error: insertError } = await supabase
-        .from('profiles')
-        .insert({ name, department: dept })
-        .select()
-        .single();
-      if (insertError) throw insertError;
-      profile = newProfile;
+      const { data: np, error: ie } = await db
+        .from('profiles').insert({ name, department: dept })
+        .select().single();
+      if (ie) throw ie;
+      profile = np;
     }
 
     currentUser = profile;
     localStorage.setItem('quiz_user', JSON.stringify(profile));
-    document.getElementById('user-badge').textContent = `${profile.name} · ${profile.department}`;
+    document.getElementById('user-badge').textContent = profile.name + ' · ' + profile.department;
     navigateTo('list');
-  } catch (err) {
-    console.error('登录失败:', err);
-    showLoginError('登录失败: ' + (err.message || err.code || JSON.stringify(err)));
+  } catch(err) {
+    showLoginErr('登录失败: ' + (err.message || JSON.stringify(err)));
   } finally {
     btn.disabled = false;
     btn.textContent = '进入系统';
   }
 }
 
-// 页面加载后检查 SDK 状态
-window.addEventListener('load', () => {
-  if (!window.supabase) {
-    document.getElementById('login-error').textContent = 'SDK 未加载，请检查网络后刷新';
-    document.getElementById('login-error').classList.remove('hidden');
-  }
-});
-
-function showLoginError(msg) {
+function showLoginErr(msg) {
   const el = document.getElementById('login-error');
-  el.textContent = msg;
-  el.classList.remove('hidden');
+  el.textContent = msg; el.style.display = 'block';
 }
-
+function hideLoginErr() {
+  document.getElementById('login-error').style.display = 'none';
+}
 function handleLogout() {
   localStorage.removeItem('quiz_user');
   currentUser = null;
   navigateTo('login');
 }
 
-// 页面加载时检查登录状态
-function checkAuth() {
-  const saved = localStorage.getItem('quiz_user');
-  if (saved) {
-    try {
-      currentUser = JSON.parse(saved);
-      document.getElementById('user-badge').textContent = `${currentUser.name} · ${currentUser.department}`;
-      navigateTo('list');
-    } catch { navigateTo('login'); }
-  } else {
-    navigateTo('login');
-  }
-}
-
-// ============================================
-// 考核列表
-// ============================================
+// ============ Quiz List ============
 async function loadQuizList() {
-  const listEl = document.getElementById('quiz-list');
-  const emptyEl = document.getElementById('quiz-list-empty');
-  const loadingEl = document.getElementById('quiz-list-loading');
-
-  listEl.innerHTML = '';
-  emptyEl.classList.add('hidden');
-  loadingEl.classList.remove('hidden');
+  const list = document.getElementById('quiz-list');
+  const empty = document.getElementById('quiz-list-empty');
+  const loading = document.getElementById('quiz-list-loading');
+  list.innerHTML = '';
+  empty.style.display = 'none';
+  loading.style.display = 'block';
 
   try {
-    // 获取所有激活的考核
-    const { data: quizzes, error: qErr } = await supabase
-      .from('quizzes')
-      .select('*')
-      .eq('is_active', true)
+    const { data: quizzes, error: qe } = await db
+      .from('quizzes').select('*').eq('is_active', true)
       .order('created_at', { ascending: false });
-    if (qErr) throw qErr;
+    if (qe) throw qe;
 
-    if (!quizzes || quizzes.length === 0) {
-      loadingEl.classList.add('hidden');
-      emptyEl.classList.remove('hidden');
+    if (!quizzes || !quizzes.length) {
+      loading.style.display = 'none';
+      empty.style.display = 'block';
       return;
     }
 
-    // 获取每个考核的题目数
-    const quizIds = quizzes.map(q => q.id);
-    const { data: questions, error: questErr } = await supabase
-      .from('questions')
-      .select('id, quiz_id')
-      .in('quiz_id', quizIds);
-    if (questErr) throw questErr;
+    const ids = quizzes.map(q=>q.id);
+    const { data: qs } = await db.from('questions').select('id,quiz_id').in('quiz_id', ids);
+    const qCounts = {};
+    (qs||[]).forEach(q => { qCounts[q.quiz_id] = (qCounts[q.quiz_id]||0)+1; });
 
-    // 统计每个考核的题目数
-    const questionCounts = {};
-    (questions || []).forEach(q => {
-      questionCounts[q.quiz_id] = (questionCounts[q.quiz_id] || 0) + 1;
-    });
-
-    // 获取当前用户的最高分
-    const { data: attempts, error: attErr } = await supabase
-      .from('attempts')
-      .select('quiz_id, score')
-      .eq('user_id', currentUser.id);
-    if (attErr) throw attErr;
-
+    const { data: atts } = await db.from('attempts').select('quiz_id,score').eq('user_id', currentUser.id);
     const bestScores = {};
-    (attempts || []).forEach(a => {
-      if (!bestScores[a.quiz_id] || a.score > bestScores[a.quiz_id]) {
-        bestScores[a.quiz_id] = a.score;
-      }
+    (atts||[]).forEach(a => {
+      if (!bestScores[a.quiz_id] || a.score > bestScores[a.quiz_id]) bestScores[a.quiz_id] = a.score;
     });
 
-    // 获取所有考核的排行榜数据（全部 attempts）
-    const { data: allAttempts, error: allAttErr } = await supabase
-      .from('attempts')
-      .select('quiz_id, score, user_id')
-      .in('quiz_id', quizIds);
-    if (allAttErr) throw allAttErr;
+    loading.style.display = 'none';
 
-    // 获取所有相关用户信息用于排行榜
-    const allUserIds = [...new Set((allAttempts || []).map(a => a.user_id))];
-    let userMap = {};
-    if (allUserIds.length > 0) {
-      const { data: users } = await supabase
-        .from('profiles')
-        .select('id, name, department')
-        .in('id', allUserIds);
-      (users || []).forEach(u => { userMap[u.id] = u; });
-    }
-
-    // 计算每个考核每个用户的最高分
-    const leaderboards = {};
-    (allAttempts || []).forEach(a => {
-      if (!leaderboards[a.quiz_id]) leaderboards[a.quiz_id] = {};
-      if (!leaderboards[a.quiz_id][a.user_id] || a.score > leaderboards[a.quiz_id][a.user_id]) {
-        leaderboards[a.quiz_id][a.user_id] = a.score;
-      }
-    });
-
-    // 渲染
-    loadingEl.classList.add('hidden');
     quizzes.forEach(quiz => {
-      const qCount = questionCounts[quiz.id] || 0;
+      const cnt = qCounts[quiz.id] || 0;
       const best = bestScores[quiz.id];
       const passed = best !== undefined && best >= quiz.passing_score;
 
-      // 排行榜 TOP 10
-      const lb = leaderboards[quiz.id] || {};
-      const top10 = Object.entries(lb)
-        .map(([uid, score]) => ({ user: userMap[uid], score }))
-        .filter(x => x.user)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 10);
-
       const card = document.createElement('div');
-      card.className = 'bg-white rounded-2xl shadow-sm border overflow-hidden';
+      card.className = 'card card-hover';
+      card.style.cursor = 'pointer';
+      card.onclick = () => navigateTo('quiz', quiz.id);
       card.innerHTML = `
-        <div class="p-5">
-          <div class="flex items-start justify-between mb-3">
-            <div class="flex-1 min-w-0">
-              <h3 class="font-bold text-gray-900 text-lg truncate">${escHtml(quiz.title)}</h3>
-              <div class="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-sm text-gray-500">
-                ${quiz.date ? `<span>📅 ${quiz.date}</span>` : ''}
-                ${quiz.trainer ? `<span>👨‍🏫 ${escHtml(quiz.trainer)}</span>` : ''}
-                <span>📝 ${qCount} 题</span>
-                <span>🎯 合格线 ${quiz.passing_score} 分</span>
-              </div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div style="flex:1;min-width:0;">
+            <h3 style="font-size:16px;font-weight:600;margin-bottom:6px;">${esc(quiz.title)}</h3>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:13px;color:#71717a;">
+              ${quiz.date ? '<span>📅 '+quiz.date+'</span>' : ''}
+              ${quiz.trainer ? '<span>👨‍🏫 '+esc(quiz.trainer)+'</span>' : ''}
+              <span>📝 ${cnt} 题</span>
+              <span>🎯 ${quiz.passing_score} 分合格</span>
             </div>
-            ${best !== undefined ? `
-              <div class="ml-3 text-center flex-shrink-0">
-                <div class="text-2xl font-bold ${passed ? 'text-green-600' : 'text-red-500'}">${best}</div>
-                <div class="text-xs ${passed ? 'text-green-600' : 'text-red-500'}">${passed ? '已通过' : '未通过'}</div>
-              </div>
-            ` : ''}
+            ${quiz.description ? '<p style="font-size:13px;color:#a1a1aa;margin-top:6px;">'+esc(quiz.description)+'</p>' : ''}
           </div>
-          ${quiz.description ? `<p class="text-sm text-gray-500 mb-3 line-clamp-2">${escHtml(quiz.description)}</p>` : ''}
-          <div class="flex gap-2">
-            <button onclick="navigateTo('quiz', '${quiz.id}')"
-              class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition active:scale-[0.98]">
-              ${best !== undefined ? '再次挑战' : '开始答题'}
-            </button>
-            ${top10.length > 0 ? `
-              <button onclick="toggleLeaderboard('${quiz.id}')"
-                class="px-4 py-2.5 border-2 border-indigo-600 text-indigo-600 rounded-xl text-sm font-medium hover:bg-indigo-50 transition">
-                🏆 排行榜
-              </button>
-            ` : ''}
-          </div>
+          ${best !== undefined ? `
+            <div style="margin-left:16px;text-align:center;flex-shrink:0;">
+              <div style="font-size:28px;font-weight:700;color:${passed?'var(--success)':'var(--danger)'};">${best}</div>
+              <span class="badge ${passed?'badge-success':'badge-danger'}">${passed?'已通过':'未通过'}</span>
+            </div>
+          ` : '<span class="badge badge-olive">未参加</span>'}
         </div>
-        ${top10.length > 0 ? `
-          <div id="lb-${quiz.id}" class="leaderboard-panel border-t bg-gray-50">
-            <div class="p-4 space-y-2">
-              <h4 class="text-sm font-bold text-gray-700 mb-2">🏆 TOP 10 排行榜</h4>
-              ${top10.map((item, i) => `
-                <div class="flex items-center gap-3 py-1.5">
-                  <span class="w-6 text-center font-bold ${i < 3 ? 'text-indigo-600' : 'text-gray-400'}">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1)}</span>
-                  <span class="flex-1 text-sm text-gray-700">${escHtml(item.user.name)}</span>
-                  <span class="text-xs text-gray-400">${escHtml(item.user.department)}</span>
-                  <span class="font-bold text-sm ${item.score >= quiz.passing_score ? 'text-green-600' : 'text-red-500'}">${item.score}分</span>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        ` : ''}
       `;
-      listEl.appendChild(card);
+      list.appendChild(card);
     });
-  } catch (err) {
-    console.error('加载考核列表失败:', err);
-    loadingEl.classList.add('hidden');
-    listEl.innerHTML = `<div class="text-center py-10 text-red-500">加载失败: ${escHtml(err.message || '网络错误')}<br><button onclick="loadQuizList()" class="mt-3 text-indigo-600 underline">重试</button></div>`;
+  } catch(err) {
+    loading.style.display = 'none';
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger);">加载失败: '+esc(err.message)+'<br><button onclick="loadQuizList()" style="margin-top:8px;color:var(--olive);">重试</button></div>';
   }
 }
 
-function toggleLeaderboard(quizId) {
-  const panel = document.getElementById('lb-' + quizId);
-  if (panel) panel.classList.toggle('open');
-}
-
-// ============================================
-// 答题页
-// ============================================
+// ============ Quiz ============
 async function loadQuiz(quizId) {
   const container = document.getElementById('questions-container');
-  container.innerHTML = '<div class="text-center py-20 text-gray-400"><div class="inline-block w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div><p class="mt-3">加载题目中...</p></div>';
+  container.innerHTML = '<div style="text-align:center;padding:40px;color:#a1a1aa;">加载中...</div>';
   userAnswers = {};
+  document.getElementById('btn-submit').disabled = true;
 
   try {
-    // 获取考核信息
-    const { data: quiz, error: qErr } = await supabase
-      .from('quizzes')
-      .select('*')
-      .eq('id', quizId)
-      .single();
-    if (qErr) throw qErr;
+    const { data: quiz, error: qe } = await db.from('quizzes').select('*').eq('id', quizId).single();
+    if (qe) throw qe;
     currentQuiz = quiz;
 
-    // 获取题目列表
-    const { data: questions, error: questErr } = await supabase
-      .from('questions')
-      .select('*')
-      .eq('quiz_id', quizId)
+    const { data: questions, error: qqe } = await db
+      .from('questions').select('*').eq('quiz_id', quizId)
       .order('order_num', { ascending: true });
-    if (questErr) throw questErr;
+    if (qqe) throw qqe;
     currentQuestions = questions || [];
-
-    if (currentQuestions.length === 0) {
-      container.innerHTML = '<div class="text-center py-20 text-gray-400">该考核暂无题目</div>';
-      return;
-    }
 
     document.getElementById('quiz-title-bar').textContent = quiz.title;
     updateProgress();
     renderQuestions();
-  } catch (err) {
-    console.error('加载题目失败:', err);
-    container.innerHTML = `<div class="text-center py-10 text-red-500">加载失败: ${escHtml(err.message)}<br><button onclick="navigateTo('list')" class="mt-3 text-indigo-600 underline">返回列表</button></div>`;
+  } catch(err) {
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--danger);">加载失败: '+esc(err.message)+'</div>';
   }
 }
 
 function renderQuestions() {
-  const container = document.getElementById('questions-container');
-  container.innerHTML = '';
+  const c = document.getElementById('questions-container');
+  c.innerHTML = '';
+  const types = { single:'单选', multiple:'多选', truefalse:'判断', fill:'填空' };
+  const letters = ['A','B','C','D','E','F'];
 
   currentQuestions.forEach((q, idx) => {
+    const opts = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options || []);
+    let optHtml = '';
+
+    if (q.type === 'single') {
+      optHtml = opts.map((o,i) => `
+        <label class="option-item" data-q="${q.id}" data-i="${i}">
+          <input type="radio" name="q_${q.id}" value="${i}" onchange="pickSingle('${q.id}',${i})">
+          <span><b style="color:#71717a;margin-right:4px;">${letters[i]}.</b> ${esc(o)}</span>
+        </label>`).join('');
+    } else if (q.type === 'multiple') {
+      optHtml = opts.map((o,i) => `
+        <label class="option-item" data-q="${q.id}" data-i="${i}">
+          <input type="checkbox" value="${i}" data-mq="${q.id}" onchange="pickMulti('${q.id}')">
+          <span><b style="color:#71717a;margin-right:4px;">${letters[i]}.</b> ${esc(o)}</span>
+        </label>`).join('');
+    } else if (q.type === 'truefalse') {
+      optHtml = `<div style="display:flex;gap:12px;">
+        <button class="tf-btn" data-q="${q.id}" onclick="pickTF('${q.id}',true,this)">✅ 正确</button>
+        <button class="tf-btn" data-q="${q.id}" onclick="pickTF('${q.id}',false,this)">❌ 错误</button>
+      </div>`;
+    } else if (q.type === 'fill') {
+      optHtml = `<input type="text" class="form-input" placeholder="请输入答案" oninput="pickFill('${q.id}',this.value)">`;
+    }
+
     const div = document.createElement('div');
-    div.className = 'bg-white rounded-2xl shadow-sm border p-5';
+    div.className = 'card';
     div.id = 'q-' + q.id;
-
-    // 题型标签
-    const typeLabels = { single: '单选', multiple: '多选', truefalse: '判断', fill: '填空' };
-    const typeColors = { single: 'bg-blue-100 text-blue-700', multiple: 'bg-purple-100 text-purple-700', truefalse: 'bg-green-100 text-green-700', fill: 'bg-orange-100 text-orange-700' };
-
-    let optionsHtml = '';
-    const options = q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : [];
-
-    switch(q.type) {
-      case 'single':
-        optionsHtml = options.map((opt, i) => `
-          <label class="flex items-start gap-3 p-3 rounded-xl border-2 border-transparent hover:bg-gray-50 cursor-pointer transition option-item" data-qid="${q.id}" data-idx="${i}">
-            <input type="radio" name="q_${q.id}" value="${i}" onchange="setAnswer('${q.id}', ${i}, 'single')"
-              class="mt-0.5 w-5 h-5 text-indigo-600 focus:ring-indigo-500">
-            <span class="text-gray-700">${escHtml(opt)}</span>
-          </label>
-        `).join('');
-        break;
-      case 'multiple':
-        optionsHtml = options.map((opt, i) => `
-          <label class="flex items-start gap-3 p-3 rounded-xl border-2 border-transparent hover:bg-gray-50 cursor-pointer transition option-item" data-qid="${q.id}" data-idx="${i}">
-            <input type="checkbox" value="${i}" onchange="setMultiAnswer('${q.id}')"
-              class="mt-0.5 w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500" data-multi="${q.id}">
-            <span class="text-gray-700">${escHtml(opt)}</span>
-          </label>
-        `).join('');
-        break;
-      case 'truefalse':
-        optionsHtml = `
-          <div class="flex gap-3">
-            <button onclick="setAnswer('${q.id}', true, 'truefalse')" id="tf-${q.id}-true"
-              class="flex-1 py-4 rounded-xl border-2 border-gray-200 text-lg font-medium hover:border-indigo-400 transition tf-btn" data-qid="${q.id}">
-              ✅ 正确
-            </button>
-            <button onclick="setAnswer('${q.id}', false, 'truefalse')" id="tf-${q.id}-false"
-              class="flex-1 py-4 rounded-xl border-2 border-gray-200 text-lg font-medium hover:border-indigo-400 transition tf-btn" data-qid="${q.id}">
-              ❌ 错误
-            </button>
-          </div>
-        `;
-        break;
-      case 'fill':
-        optionsHtml = `
-          <input type="text" placeholder="请输入答案" oninput="setAnswer('${q.id}', this.value, 'fill')"
-            class="w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition" data-fill="${q.id}">
-        `;
-        break;
-    }
-
     div.innerHTML = `
-      <div class="flex items-center gap-2 mb-3">
-        <span class="text-sm font-medium text-gray-400">${idx + 1}/${currentQuestions.length}</span>
-        <span class="text-xs px-2 py-0.5 rounded-full ${typeColors[q.type] || 'bg-gray-100 text-gray-600'}">${typeLabels[q.type] || q.type}</span>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <span style="font-size:13px;color:#a1a1aa;">${idx+1}/${currentQuestions.length}</span>
+        <span class="badge badge-olive">${types[q.type]||q.type}</span>
       </div>
-      <h3 class="text-base font-medium text-gray-900 mb-4 leading-relaxed">${escHtml(q.question)}</h3>
-      <div class="space-y-2">${optionsHtml}</div>
+      <p style="font-size:15px;font-weight:500;margin-bottom:14px;line-height:1.7;">${esc(q.question)}</p>
+      <div style="display:flex;flex-direction:column;gap:8px;">${optHtml}</div>
     `;
-    container.appendChild(div);
+    c.appendChild(div);
   });
+
+  document.getElementById('btn-submit').onclick = handleSubmit;
 }
 
-// 设置答案（单选/判断/填空）
-function setAnswer(qid, value, type) {
-  userAnswers[qid] = value;
-  updateProgress();
-
-  if (type === 'truefalse') {
-    // 高亮选中的按钮
-    document.querySelectorAll(`.tf-btn[data-qid="${qid}"]`).forEach(btn => {
-      btn.classList.remove('border-indigo-600', 'bg-indigo-50', 'text-indigo-700');
-      btn.classList.add('border-gray-200');
-    });
-    const selected = document.getElementById(`tf-${qid}-${value}`);
-    if (selected) {
-      selected.classList.remove('border-gray-200');
-      selected.classList.add('border-indigo-600', 'bg-indigo-50', 'text-indigo-700');
-    }
-  }
-
-  if (type === 'single') {
-    // 高亮选中的选项
-    document.querySelectorAll(`.option-item[data-qid="${qid}"]`).forEach(el => {
-      el.classList.remove('border-indigo-600', 'bg-indigo-50');
-      el.classList.add('border-transparent');
-    });
-    const selected = document.querySelector(`.option-item[data-qid="${qid}"][data-idx="${value}"]`);
-    if (selected) {
-      selected.classList.remove('border-transparent');
-      selected.classList.add('border-indigo-600', 'bg-indigo-50');
-    }
-  }
-}
-
-// 设置多选答案
-function setMultiAnswer(qid) {
-  const checks = document.querySelectorAll(`input[data-multi="${qid}"]:checked`);
-  const values = Array.from(checks).map(c => parseInt(c.value));
-  if (values.length > 0) {
-    userAnswers[qid] = values;
-  } else {
-    delete userAnswers[qid];
-  }
-  updateProgress();
-
-  // 高亮已选选项
-  document.querySelectorAll(`.option-item[data-qid="${qid}"]`).forEach(el => {
-    const idx = parseInt(el.dataset.idx);
-    if (values.includes(idx)) {
-      el.classList.remove('border-transparent');
-      el.classList.add('border-indigo-600', 'bg-indigo-50');
-    } else {
-      el.classList.remove('border-indigo-600', 'bg-indigo-50');
-      el.classList.add('border-transparent');
-    }
+function pickSingle(qid, i) {
+  userAnswers[qid] = i;
+  document.querySelectorAll(`.option-item[data-q="${qid}"]`).forEach(el => {
+    el.classList.toggle('selected', parseInt(el.dataset.i) === i);
   });
+  updateProgress();
 }
-
-// 更新进度
+function pickMulti(qid) {
+  const vals = Array.from(document.querySelectorAll(`input[data-mq="${qid}"]:checked`)).map(c => parseInt(c.value));
+  if (vals.length) userAnswers[qid] = vals; else delete userAnswers[qid];
+  document.querySelectorAll(`.option-item[data-q="${qid}"]`).forEach(el => {
+    el.classList.toggle('selected', vals.includes(parseInt(el.dataset.i)));
+  });
+  updateProgress();
+}
+function pickTF(qid, val, btn) {
+  userAnswers[qid] = val;
+  document.querySelectorAll(`.tf-btn[data-q="${qid}"]`).forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  updateProgress();
+}
+function pickFill(qid, val) {
+  if (val.trim()) userAnswers[qid] = val; else delete userAnswers[qid];
+  updateProgress();
+}
 function updateProgress() {
   const total = currentQuestions.length;
-  const answered = Object.keys(userAnswers).filter(k => {
-    const v = userAnswers[k];
-    return v !== undefined && v !== '' && !(Array.isArray(v) && v.length === 0);
-  }).length;
-  const pct = total > 0 ? Math.round((answered / total) * 100) : 0;
-  document.getElementById('quiz-progress-bar').style.width = pct + '%';
-  document.getElementById('quiz-progress-text').textContent = `${answered}/${total}`;
+  const done = Object.keys(userAnswers).length;
+  document.getElementById('quiz-progress-bar').style.width = (total?done/total*100:0)+'%';
+  document.getElementById('quiz-progress-text').textContent = done+'/'+total;
+  document.getElementById('btn-submit').disabled = (done === 0);
 }
-
-// 退出确认
 function confirmExit() {
-  const answered = Object.keys(userAnswers).length;
-  if (answered > 0) {
-    if (confirm('确定要退出吗？已答的内容将不会保存。')) {
-      navigateTo('list');
-    }
-  } else {
-    navigateTo('list');
-  }
+  if (Object.keys(userAnswers).length && !confirm('确定退出？答题进度将丢失。')) return;
+  navigateTo('list');
 }
 
-// ============================================
-// 提交判分
-// ============================================
+// ============ Submit ============
 async function handleSubmit() {
   const total = currentQuestions.length;
-  const answered = Object.keys(userAnswers).filter(k => {
-    const v = userAnswers[k];
-    return v !== undefined && v !== '' && !(Array.isArray(v) && v.length === 0);
-  }).length;
-
-  if (answered < total) {
-    if (!confirm(`你还有 ${total - answered} 题未作答，确定要提交吗？`)) return;
-  }
+  const done = Object.keys(userAnswers).length;
+  if (done < total && !confirm(`还有 ${total-done} 题未答，确定提交？`)) return;
 
   const btn = document.getElementById('btn-submit');
-  btn.disabled = true;
-  btn.textContent = '提交中...';
+  btn.disabled = true; btn.textContent = '提交中...';
 
   try {
-    // 判分
-    let correctCount = 0;
-    const responseRecords = [];
-
+    let correct = 0;
+    const resps = [];
     currentQuestions.forEach(q => {
-      const userAns = userAnswers[q.id];
-      const correctAns = typeof q.answer === 'string' ? JSON.parse(q.answer) : q.answer;
-      let isCorrect = false;
-
-      if (userAns !== undefined && userAns !== '') {
-        switch(q.type) {
-          case 'single':
-            isCorrect = Number(userAns) === Number(correctAns);
-            break;
-          case 'multiple':
-            if (Array.isArray(userAns) && Array.isArray(correctAns)) {
-              const sorted1 = [...userAns].map(Number).sort();
-              const sorted2 = [...correctAns].map(Number).sort();
-              isCorrect = JSON.stringify(sorted1) === JSON.stringify(sorted2);
-            }
-            break;
-          case 'truefalse':
-            isCorrect = userAns === correctAns;
-            break;
-          case 'fill':
-            isCorrect = String(userAns).trim().toLowerCase() === String(correctAns).trim().toLowerCase();
-            break;
-        }
+      const ua = userAnswers[q.id];
+      const ca = typeof q.answer === 'string' ? JSON.parse(q.answer) : q.answer;
+      let ok = false;
+      if (ua !== undefined && ua !== '') {
+        if (q.type==='single') ok = Number(ua)===Number(ca);
+        else if (q.type==='multiple' && Array.isArray(ua) && Array.isArray(ca)) ok = JSON.stringify([...ua].map(Number).sort()) === JSON.stringify([...ca].map(Number).sort());
+        else if (q.type==='truefalse') ok = ua === ca;
+        else if (q.type==='fill') ok = String(ua).trim().toLowerCase() === String(ca).trim().toLowerCase();
       }
-
-      if (isCorrect) correctCount++;
-
-      responseRecords.push({
-        question_id: q.id,
-        user_answer: userAns !== undefined ? userAns : null,
-        is_correct: isCorrect
-      });
+      if (ok) correct++;
+      resps.push({ question_id: q.id, user_answer: ua ?? null, is_correct: ok });
     });
 
-    const score = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+    const score = total ? Math.round(correct/total*100) : 0;
+    const { data: att, error: ae } = await db.from('attempts')
+      .insert({ user_id: currentUser.id, quiz_id: currentQuiz.id, score, correct_count: correct, total })
+      .select().single();
+    if (ae) throw ae;
 
-    // 存入 attempts
-    const { data: attempt, error: attErr } = await supabase
-      .from('attempts')
-      .insert({
-        user_id: currentUser.id,
-        quiz_id: currentQuiz.id,
-        score: score,
-        correct_count: correctCount,
-        total: total
-      })
-      .select()
-      .single();
-    if (attErr) throw attErr;
+    await db.from('responses').insert(resps.map(r => ({ ...r, attempt_id: att.id })));
 
-    // 存入 responses
-    const responsesWithAttempt = responseRecords.map(r => ({
-      ...r,
-      attempt_id: attempt.id
-    }));
-    const { error: respErr } = await supabase
-      .from('responses')
-      .insert(responsesWithAttempt);
-    if (respErr) throw respErr;
-
-    // 跳转结果页
-    navigateTo('result', {
-      score,
-      correctCount,
-      total,
-      passingScore: currentQuiz.passing_score,
-      questions: currentQuestions,
-      userAnswers,
-      responses: responseRecords
-    });
-  } catch (err) {
-    console.error('提交失败:', err);
-    alert('提交失败: ' + (err.message || '网络错误'));
+    navigateTo('result', { score, correct, total, passingScore: currentQuiz.passing_score, questions: currentQuestions, answers: userAnswers, resps });
+  } catch(err) {
+    alert('提交失败: ' + (err.message || JSON.stringify(err)));
   } finally {
-    btn.disabled = false;
-    btn.textContent = '提交答卷';
+    btn.disabled = false; btn.textContent = '提交答卷';
   }
 }
 
-// ============================================
-// 结果页
-// ============================================
-function showResult(data) {
-  const { score, correctCount, total, passingScore, questions, userAnswers: answers, responses } = data;
+// ============ Result ============
+async function showResult(data) {
+  const { score, correct, total, passingScore } = data;
   const passed = score >= passingScore;
 
-  // 分数环
   const circle = document.getElementById('score-circle');
-  const offset = 283 - (283 * score / 100);
-  circle.style.stroke = passed ? '#059669' : '#ef4444';
-  circle.style.strokeDashoffset = offset;
+  circle.style.stroke = passed ? 'var(--success)' : 'var(--danger)';
+  circle.style.strokeDashoffset = 283 - (283 * score / 100);
 
   document.getElementById('score-number').textContent = score;
-  document.getElementById('score-number').className = `text-4xl font-bold ${passed ? 'text-green-600' : 'text-red-500'}`;
-
+  document.getElementById('score-number').style.color = passed ? 'var(--success)' : 'var(--danger)';
   document.getElementById('result-status').textContent = passed ? '🎉 恭喜通过！' : '😔 未通过';
-  document.getElementById('result-status').className = `mt-4 text-xl font-bold ${passed ? 'text-green-600' : 'text-red-500'}`;
-
-  document.getElementById('result-stats').textContent = `答对 ${correctCount}/${total} 题 · 合格线 ${passingScore} 分`;
-
-  // 解析内容
-  const analysisContent = document.getElementById('analysis-content');
-  analysisContent.innerHTML = '';
-  document.getElementById('analysis-panel').classList.remove('open');
+  document.getElementById('result-status').style.color = passed ? 'var(--success)' : 'var(--danger)';
+  document.getElementById('result-stats').textContent = `答对 ${correct}/${total} 题 · 合格线 ${passingScore} 分`;
+  document.getElementById('analysis-wrap').classList.remove('open');
   document.getElementById('btn-analysis').textContent = '查看解析';
 
-  questions.forEach((q, idx) => {
-    const resp = responses[idx];
-    const correctAns = typeof q.answer === 'string' ? JSON.parse(q.answer) : q.answer;
-    const options = q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : [];
-    const typeLabels = { single: '单选', multiple: '多选', truefalse: '判断', fill: '填空' };
+  // Pre-load sources for analysis
+  try {
+    const qids = data.questions.map(q => q.id);
+    const { data: sources } = await db.from('question_sources')
+      .select('question_id, training_segments(chapter_num, title, timestamp, content)')
+      .in('question_id', qids);
+    data._sources = {};
+    (sources||[]).forEach(s => {
+      if (!data._sources[s.question_id]) data._sources[s.question_id] = [];
+      if (s.training_segments) data._sources[s.question_id].push(s.training_segments);
+    });
+  } catch(e) { data._sources = {}; }
 
-    // 格式化正确答案显示
-    let correctDisplay = '';
-    let userDisplay = '';
-
-    switch(q.type) {
-      case 'single':
-        correctDisplay = options[Number(correctAns)] || correctAns;
-        userDisplay = answers[q.id] !== undefined ? (options[Number(answers[q.id])] || '未作答') : '未作答';
-        break;
-      case 'multiple':
-        correctDisplay = (Array.isArray(correctAns) ? correctAns : []).map(i => options[Number(i)]).filter(Boolean).join('、');
-        userDisplay = answers[q.id] ? (Array.isArray(answers[q.id]) ? answers[q.id].map(i => options[Number(i)]).filter(Boolean).join('、') : '未作答') : '未作答';
-        break;
-      case 'truefalse':
-        correctDisplay = correctAns ? '正确 ✅' : '错误 ❌';
-        userDisplay = answers[q.id] !== undefined ? (answers[q.id] ? '正确 ✅' : '错误 ❌') : '未作答';
-        break;
-      case 'fill':
-        correctDisplay = String(correctAns);
-        userDisplay = answers[q.id] || '未作答';
-        break;
-    }
-
-    const div = document.createElement('div');
-    div.className = `p-4 rounded-xl border-2 ${resp.is_correct ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`;
-    div.innerHTML = `
-      <div class="flex items-center gap-2 mb-2">
-        <span class="${resp.is_correct ? 'text-green-600' : 'text-red-500'} font-bold">${resp.is_correct ? '✓' : '✗'}</span>
-        <span class="text-sm text-gray-500">${idx + 1}. [${typeLabels[q.type]}]</span>
-      </div>
-      <p class="text-sm font-medium text-gray-900 mb-2">${escHtml(q.question)}</p>
-      <div class="text-sm space-y-1">
-        <p><span class="text-gray-500">你的答案：</span><span class="${resp.is_correct ? 'text-green-700' : 'text-red-600'}">${escHtml(userDisplay)}</span></p>
-        ${!resp.is_correct ? `<p><span class="text-gray-500">正确答案：</span><span class="text-green-700">${escHtml(correctDisplay)}</span></p>` : ''}
-        ${q.explanation ? `<p class="mt-2 text-gray-600 bg-white/60 rounded-lg p-2 text-xs leading-relaxed">💡 ${escHtml(q.explanation)}</p>` : ''}
-      </div>
-    `;
-    analysisContent.appendChild(div);
-  });
+  lastResultData = data;
 }
 
 function toggleAnalysis() {
-  const panel = document.getElementById('analysis-panel');
+  const wrap = document.getElementById('analysis-wrap');
   const btn = document.getElementById('btn-analysis');
-  if (panel.classList.contains('open')) {
-    panel.classList.remove('open');
+  if (wrap.classList.contains('open')) {
+    wrap.classList.remove('open');
     btn.textContent = '查看解析';
   } else {
-    panel.classList.add('open');
+    wrap.classList.add('open');
     btn.textContent = '收起解析';
+    renderAnalysis();
   }
 }
 
-// ============================================
-// 工具函数
-// ============================================
-function escHtml(str) {
-  if (!str) return '';
-  const div = document.createElement('div');
-  div.textContent = String(str);
-  return div.innerHTML;
+function renderAnalysis() {
+  const el = document.getElementById('analysis-content');
+  if (el.children.length) return;
+  const data = lastResultData;
+  if (!data) return;
+  const letters = ['A','B','C','D','E','F'];
+
+  data.questions.forEach((q, idx) => {
+    const resp = data.resps[idx];
+    const ca = typeof q.answer === 'string' ? JSON.parse(q.answer) : q.answer;
+    const opts = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options||[]);
+    const ua = data.answers[q.id];
+
+    let correctStr = '', userStr = '';
+    if (q.type==='single') { correctStr=letters[Number(ca)]+'. '+opts[Number(ca)]; userStr=ua!==undefined?letters[Number(ua)]+'. '+opts[Number(ua)]:'未作答'; }
+    else if (q.type==='multiple') { correctStr=(Array.isArray(ca)?ca:[]).map(i=>letters[Number(i)]).join('、'); userStr=Array.isArray(ua)?ua.map(i=>letters[Number(i)]).join('、'):'未作答'; }
+    else if (q.type==='truefalse') { correctStr=ca?'正确':'错误'; userStr=ua!==undefined?(ua?'正确':'错误'):'未作答'; }
+    else if (q.type==='fill') { correctStr=String(ca); userStr=ua||'未作答'; }
+
+    const sources = (data._sources||{})[q.id] || [];
+    let sourceHtml = '';
+    if (sources.length) {
+      sourceHtml = sources.map(s => `
+        <details class="source-panel">
+          <summary>📎 来源：[${esc(s.timestamp)}] ${esc(s.title)}</summary>
+          <div class="content">${esc(s.content)}</div>
+        </details>
+      `).join('');
+    }
+
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.style.borderLeft = '3px solid ' + (resp.is_correct ? 'var(--success)' : 'var(--danger)');
+    div.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="font-weight:700;color:${resp.is_correct?'var(--success)':'var(--danger)'};">${resp.is_correct?'✓':'✗'}</span>
+        <span style="font-size:13px;color:#a1a1aa;">${idx+1}.</span>
+      </div>
+      <p style="font-size:14px;font-weight:500;margin-bottom:8px;">${esc(q.question)}</p>
+      <div style="font-size:13px;line-height:1.8;">
+        <p>你的答案：<span style="color:${resp.is_correct?'var(--success)':'var(--danger)'};">${esc(userStr)}</span></p>
+        ${!resp.is_correct ? '<p>正确答案：<span style="color:var(--success);">'+esc(correctStr)+'</span></p>' : ''}
+      </div>
+      ${q.explanation ? '<div class="explanation">💡 '+esc(q.explanation)+'</div>' : ''}
+      ${sourceHtml}
+    `;
+    el.appendChild(div);
+  });
 }
 
-// ============================================
-// 启动
-// ============================================
-document.addEventListener('DOMContentLoaded', checkAuth);
+// ============ Utils ============
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
 </script>
 </body>
 </html>
