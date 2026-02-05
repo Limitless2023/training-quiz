@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>培训考核系统</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --primary: #4F46E5;
+  --primary-light: #818CF8;
+  --primary-dark: #3730A3;
+  --success: #10B981;
+  --danger: #EF4444;
+  --warning: #F59E0B;
+  --bg: #F9FAFB;
+  --card: #FFFFFF;
+  --text: #111827;
+  --text-secondary: #6B7280;
+  --border: #E5E7EB;
+  --radius: 12px;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+.container { max-width: 800px; margin: 0 auto; padding: 20px; }
+
+/* Header */
+.header {
+  text-align: center;
+  padding: 40px 20px 30px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  border-radius: 0 0 24px 24px;
+  margin-bottom: 30px;
+}
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+.header p { opacity: 0.85; font-size: 15px; }
+.header .logo { font-size: 40px; margin-bottom: 12px; }
+
+/* Cards */
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  border: 1px solid var(--border);
+}
+.card-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; }
+
+/* Forms */
+.form-group { margin-bottom: 16px; }
+.form-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.form-group input, .form-group select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 16px;
+  transition: border-color 0.2s;
+  background: white;
+}
+.form-group input:focus, .form-group select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+}
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+.btn-primary:disabled { background: #C7D2FE; cursor: not-allowed; transform: none; }
+.btn-success { background: var(--success); color: white; }
+.btn-success:hover { background: #059669; }
+.btn-outline {
+  background: white;
+  color: var(--primary);
+  border: 1.5px solid var(--primary);
+}
+.btn-outline:hover { background: #EEF2FF; }
+.btn-sm { padding: 8px 16px; font-size: 14px; width: auto; }
+
+/* Quiz list */
+.quiz-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: white;
+}
+.quiz-item:hover { border-color: var(--primary-light); box-shadow: 0 2px 8px rgba(79,70,229,0.1); }
+.quiz-item .info h3 { font-size: 16px; font-weight: 600; }
+.quiz-item .info p { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+.quiz-item .meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.quiz-item .badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.badge-new { background: #DBEAFE; color: #1D4ED8; }
+.badge-done { background: #D1FAE5; color: #065F46; }
+.badge-questions { background: #F3F4F6; color: #4B5563; }
+
+/* Quiz question */
+.question-card {
+  background: white;
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 16px;
+  border: 1.5px solid var(--border);
+  transition: border-color 0.3s;
+}
+.question-card.answered { border-color: var(--primary-light); }
+.question-card.correct { border-color: var(--success); background: #F0FDF4; }
+.question-card.wrong { border-color: var(--danger); background: #FEF2F2; }
+.question-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: var(--primary);
+  color: white;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 700;
+  margin-right: 10px;
+}
+.question-text { font-size: 16px; font-weight: 500; margin-bottom: 16px; display: inline; }
+
+.options { display: flex; flex-direction: column; gap: 8px; }
+.option {
+  display: flex;
+  align-items: flex-start;
+  padding: 12px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 15px;
+}
+.option:hover { border-color: var(--primary-light); background: #F5F3FF; }
+.option.selected { border-color: var(--primary); background: #EEF2FF; }
+.option.correct-answer { border-color: var(--success); background: #ECFDF5; }
+.option.wrong-answer { border-color: var(--danger); background: #FEF2F2; }
+.option-letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+.option.selected .option-letter { background: var(--primary); color: white; border-color: var(--primary); }
+.option.correct-answer .option-letter { background: var(--success); color: white; border-color: var(--success); }
+.option.wrong-answer .option-letter { background: var(--danger); color: white; border-color: var(--danger); }
+.option[disabled] { cursor: default; }
+.option[disabled]:hover { border-color: var(--border); background: white; }
+
+.explanation {
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: #FFFBEB;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #92400E;
+  display: none;
+  border-left: 3px solid var(--warning);
+}
+.explanation.show { display: block; }
+
+/* Progress bar */
+.progress-bar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: white;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.progress-bar .track {
+  flex: 1;
+  height: 8px;
+  background: #E5E7EB;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.progress-bar .fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+.progress-bar .text { font-size: 13px; color: var(--text-secondary); font-weight: 500; white-space: nowrap; }
+
+/* Results */
+.result-circle {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+  border: 6px solid;
+}
+.result-circle.pass { border-color: var(--success); background: #F0FDF4; }
+.result-circle.fail { border-color: var(--danger); background: #FEF2F2; }
+.result-circle .score { font-size: 42px; font-weight: 800; }
+.result-circle.pass .score { color: var(--success); }
+.result-circle.fail .score { color: var(--danger); }
+.result-circle .label { font-size: 14px; color: var(--text-secondary); }
+.result-status { text-align: center; font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+.result-detail { text-align: center; color: var(--text-secondary); font-size: 14px; margin-bottom: 24px; }
+.result-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.stat-item {
+  text-align: center;
+  padding: 16px;
+  background: var(--bg);
+  border-radius: 8px;
+}
+.stat-item .num { font-size: 24px; font-weight: 700; }
+.stat-item .label { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+.stat-correct .num { color: var(--success); }
+.stat-wrong .num { color: var(--danger); }
+
+/* Leaderboard */
+.lb-row {
+  display: flex;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.lb-row:last-child { border-bottom: none; }
+.lb-rank {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 700;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+.lb-rank.gold { background: #FEF3C7; color: #B45309; }
+.lb-rank.silver { background: #F3F4F6; color: #4B5563; }
+.lb-rank.bronze { background: #FED7AA; color: #C2410C; }
+.lb-rank.normal { background: #F9FAFB; color: #9CA3AF; }
+.lb-info { flex: 1; }
+.lb-info .name { font-weight: 600; font-size: 15px; }
+.lb-info .dept { font-size: 12px; color: var(--text-secondary); }
+.lb-score { font-size: 18px; font-weight: 700; color: var(--primary); }
+
+/* Admin */
+.admin-link {
+  text-align: center;
+  padding: 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.admin-link a { color: var(--primary); text-decoration: none; }
+
+/* Buttons row */
+.btn-row { display: flex; gap: 12px; margin-top: 16px; }
+.btn-row .btn { flex: 1; }
+
+/* Responsive */
+@media (max-width: 600px) {
+  .container { padding: 12px; }
+  .header { padding: 30px 16px 24px; }
+  .header h1 { font-size: 22px; }
+  .card { padding: 16px; }
+  .result-stats { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .stat-item { padding: 12px 8px; }
+}
+
+/* Page transitions */
+.page { display: none; animation: fadeIn 0.3s ease; }
+.page.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Hidden */
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- ========== LOGIN PAGE ========== -->
+<div id="page-login" class="page active">
+  <div class="header">
+    <div class="logo">📝</div>
+    <h1>培训考核系统</h1>
+    <p>2026年度系列培训 · 在线测试</p>
+  </div>
+  <div class="container">
+    <div class="card">
+      <div class="card-title">👋 请先登录</div>
+      <div class="form-group">
+        <label>姓名</label>
+        <input type="text" id="input-name" placeholder="请输入你的姓名" autocomplete="name">
+      </div>
+      <div class="form-group">
+        <label>所属部门</label>
+        <select id="input-dept">
+          <option value="">请选择部门</option>
+          <option value="产品部">产品部</option>
+          <option value="研发部">研发部</option>
+          <option value="售前部">售前部</option>
+          <option value="销售部">销售部</option>
+          <option value="交付部">交付部</option>
+          <option value="客户成功部">客户成功部</option>
+          <option value="市场部">市场部</option>
+          <option value="法务部">法务部</option>
+          <option value="财务部">财务部</option>
+          <option value="其他">其他</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" id="btn-login">进入考核 →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== QUIZ LIST PAGE ========== -->
+<div id="page-list" class="page">
+  <div class="header">
+    <div class="logo">📝</div>
+    <h1>培训考核系统</h1>
+    <p id="user-greeting"></p>
+  </div>
+  <div class="container">
+    <div class="card">
+      <div class="card-title">📚 可参加的考核</div>
+      <div id="quiz-list"></div>
+    </div>
+    <div class="card" id="leaderboard-section">
+      <div class="card-title">🏆 排行榜</div>
+      <select id="lb-quiz-select" style="width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;margin-bottom:12px;font-size:14px;"></select>
+      <div id="leaderboard-content"></div>
+    </div>
+    <div class="admin-link">
+      <a href="javascript:void(0)" onclick="exportResults()">📊 导出成绩数据</a>
+    </div>
+  </div>
+</div>
+
+<!-- ========== QUIZ PAGE ========== -->
+<div id="page-quiz" class="page">
+  <div class="progress-bar" id="progress-bar">
+    <button class="btn btn-outline btn-sm" onclick="confirmQuit()" style="padding:6px 12px;font-size:13px;">← 退出</button>
+    <div class="track"><div class="fill" id="progress-fill"></div></div>
+    <span class="text" id="progress-text">0/0</span>
+  </div>
+  <div class="container" style="padding-top:8px;">
+    <div id="quiz-title-bar" style="margin-bottom:16px;">
+      <h2 id="quiz-title" style="font-size:20px;font-weight:700;"></h2>
+    </div>
+    <div id="questions-container"></div>
+    <button class="btn btn-primary" id="btn-submit" style="margin-top:8px;" disabled>提交答卷</button>
+  </div>
+</div>
+
+<!-- ========== RESULT PAGE ========== -->
+<div id="page-result" class="page">
+  <div class="container" style="padding-top:30px;">
+    <div class="card" style="text-align:center;">
+      <div id="result-circle" class="result-circle">
+        <span class="score" id="result-score">0</span>
+        <span class="label">分</span>
+      </div>
+      <div class="result-status" id="result-status"></div>
+      <div class="result-detail" id="result-detail"></div>
+      <div class="result-stats">
+        <div class="stat-item stat-correct">
+          <div class="num" id="stat-correct">0</div>
+          <div class="label">答对</div>
+        </div>
+        <div class="stat-item stat-wrong">
+          <div class="num" id="stat-wrong">0</div>
+          <div class="label">答错</div>
+        </div>
+        <div class="stat-item">
+          <div class="num" id="stat-total">0</div>
+          <div class="label">总题数</div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-outline" onclick="showReview()">📖 查看解析</button>
+        <button class="btn btn-primary" onclick="showPage('page-list');loadQuizList()">返回列表</button>
+      </div>
+    </div>
+    <div id="review-section" class="hidden" style="margin-top:16px;"></div>
+  </div>
+</div>
+
+<script>
+// ============ STATE ============
+let currentUser = null;
+let quizzes = {};
+let currentQuiz = null;
+let userAnswers = {};
+
+// ============ STORAGE ============
+const STORAGE_KEY = 'training_quiz_data';
+const USER_KEY = 'training_quiz_user';
+
+function loadStorage() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { results: [] }; } catch { return { results: [] }; }
+}
+function saveResult(result) {
+  const data = loadStorage();
+  data.results.push(result);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+function getResults(quizId) {
+  return loadStorage().results.filter(r => !quizId || r.quizId === quizId);
+}
+function getUserBestScore(quizId) {
+  if (!currentUser) return null;
+  const results = getResults(quizId).filter(r => r.name === currentUser.name && r.dept === currentUser.dept);
+  if (!results.length) return null;
+  return Math.max(...results.map(r => r.score));
+}
+
+// ============ PAGES ============
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+// ============ LOGIN ============
+function initLogin() {
+  const saved = localStorage.getItem(USER_KEY);
+  if (saved) {
+    try {
+      currentUser = JSON.parse(saved);
+      document.getElementById('input-name').value = currentUser.name;
+      document.getElementById('input-dept').value = currentUser.dept;
+    } catch {}
+  }
+  document.getElementById('btn-login').addEventListener('click', doLogin);
+  document.getElementById('input-name').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+}
+function doLogin() {
+  const name = document.getElementById('input-name').value.trim();
+  const dept = document.getElementById('input-dept').value;
+  if (!name) { alert('请输入姓名'); return; }
+  if (!dept) { alert('请选择部门'); return; }
+  currentUser = { name, dept };
+  localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+  showPage('page-list');
+  loadQuizList();
+}
+
+// ============ QUIZ LIST ============
+async function loadQuizList() {
+  document.getElementById('user-greeting').textContent = `${currentUser.name} · ${currentUser.dept}`;
+  
+  // Load quiz index
+  const quizFiles = await loadQuizIndex();
+  const list = document.getElementById('quiz-list');
+  list.innerHTML = '';
+  
+  const lbSelect = document.getElementById('lb-quiz-select');
+  lbSelect.innerHTML = '<option value="">全部考核</option>';
+  
+  for (const file of quizFiles) {
+    if (!quizzes[file]) {
+      try {
+        const resp = await fetch(`quizzes/${file}`);
+        const data = await resp.json();
+        quizzes[data.id] = data;
+      } catch (e) { console.error('Failed to load', file, e); continue; }
+    }
+  }
+  
+  Object.values(quizzes).sort((a, b) => b.date.localeCompare(a.date)).forEach(quiz => {
+    const best = getUserBestScore(quiz.id);
+    const done = best !== null;
+    
+    const item = document.createElement('div');
+    item.className = 'quiz-item';
+    item.onclick = () => startQuiz(quiz.id);
+    item.innerHTML = `
+      <div class="info">
+        <h3>${quiz.title}</h3>
+        <p>${quiz.date} · ${quiz.trainer || '培训师'} · ${quiz.questions.length} 题</p>
+      </div>
+      <div class="meta">
+        ${done ? `<span class="badge badge-done">最高 ${best}分</span>` : '<span class="badge badge-new">未完成</span>'}
+        <span class="badge badge-questions">${quiz.questions.length} 题</span>
+      </div>
+    `;
+    list.appendChild(item);
+    
+    lbSelect.innerHTML += `<option value="${quiz.id}">${quiz.title}</option>`;
+  });
+  
+  lbSelect.onchange = () => renderLeaderboard(lbSelect.value);
+  renderLeaderboard('');
+}
+
+async function loadQuizIndex() {
+  try {
+    const resp = await fetch('quizzes/index.json');
+    return await resp.json();
+  } catch {
+    // Fallback: try known quiz files
+    return ['meflow-agent-2026-02-05.json'];
+  }
+}
+
+// ============ LEADERBOARD ============
+function renderLeaderboard(quizId) {
+  const results = getResults(quizId);
+  // Get best score per person
+  const best = {};
+  results.forEach(r => {
+    const key = `${r.name}|${r.dept}`;
+    if (!best[key] || r.score > best[key].score) {
+      best[key] = r;
+    }
+  });
+  const sorted = Object.values(best).sort((a, b) => b.score - a.score || a.time - b.time).slice(0, 10);
+  
+  const container = document.getElementById('leaderboard-content');
+  if (!sorted.length) {
+    container.innerHTML = '<p style="text-align:center;color:var(--text-secondary);padding:20px;">暂无成绩记录</p>';
+    return;
+  }
+  container.innerHTML = sorted.map((r, i) => {
+    const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : 'normal';
+    const emoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
+    return `
+      <div class="lb-row">
+        <div class="lb-rank ${rankClass}">${emoji}</div>
+        <div class="lb-info">
+          <div class="name">${r.name}</div>
+          <div class="dept">${r.dept}</div>
+        </div>
+        <div class="lb-score">${r.score}分</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ============ QUIZ ============
+function startQuiz(quizId) {
+  currentQuiz = quizzes[quizId];
+  userAnswers = {};
+  
+  document.getElementById('quiz-title').textContent = currentQuiz.title;
+  
+  const container = document.getElementById('questions-container');
+  container.innerHTML = '';
+  
+  currentQuiz.questions.forEach((q, idx) => {
+    const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
+    const qDiv = document.createElement('div');
+    qDiv.className = 'question-card';
+    qDiv.id = `q-${q.id}`;
+    qDiv.innerHTML = `
+      <div style="margin-bottom:16px;">
+        <span class="question-number">${idx + 1}</span>
+        <span class="question-text">${q.question}</span>
+      </div>
+      <div class="options">
+        ${q.options.map((opt, oi) => `
+          <div class="option" data-qid="${q.id}" data-oid="${oi}" onclick="selectOption(${q.id}, ${oi})">
+            <span class="option-letter">${letters[oi]}</span>
+            <span>${opt}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="explanation" id="exp-${q.id}">${q.explanation || ''}</div>
+    `;
+    container.appendChild(qDiv);
+  });
+  
+  updateProgress();
+  document.getElementById('btn-submit').disabled = true;
+  document.getElementById('btn-submit').onclick = submitQuiz;
+  showPage('page-quiz');
+}
+
+function selectOption(qid, oid) {
+  // Remove previous selection
+  document.querySelectorAll(`.option[data-qid="${qid}"]`).forEach(o => o.classList.remove('selected'));
+  // Select new
+  document.querySelector(`.option[data-qid="${qid}"][data-oid="${oid}"]`).classList.add('selected');
+  document.getElementById(`q-${qid}`).classList.add('answered');
+  
+  userAnswers[qid] = oid;
+  updateProgress();
+  
+  // Enable submit if all answered
+  if (Object.keys(userAnswers).length === currentQuiz.questions.length) {
+    document.getElementById('btn-submit').disabled = false;
+  }
+}
+
+function updateProgress() {
+  const total = currentQuiz.questions.length;
+  const done = Object.keys(userAnswers).length;
+  const pct = (done / total * 100).toFixed(0);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-text').textContent = `${done}/${total}`;
+}
+
+function confirmQuit() {
+  if (Object.keys(userAnswers).length > 0) {
+    if (!confirm('确定退出？当前答题进度将丢失。')) return;
+  }
+  showPage('page-list');
+  loadQuizList();
+}
+
+function submitQuiz() {
+  if (!confirm('确认提交答卷？提交后不可修改。')) return;
+  
+  let correct = 0;
+  const total = currentQuiz.questions.length;
+  
+  currentQuiz.questions.forEach(q => {
+    const userAns = userAnswers[q.id];
+    const isCorrect = userAns === q.answer;
+    if (isCorrect) correct++;
+    
+    const card = document.getElementById(`q-${q.id}`);
+    card.classList.add(isCorrect ? 'correct' : 'wrong');
+    
+    // Disable all options
+    card.querySelectorAll('.option').forEach(o => {
+      o.setAttribute('disabled', 'true');
+      o.onclick = null;
+      const oid = parseInt(o.dataset.oid);
+      if (oid === q.answer) o.classList.add('correct-answer');
+      if (oid === userAns && !isCorrect) o.classList.add('wrong-answer');
+    });
+    
+    // Show explanation
+    document.getElementById(`exp-${q.id}`).classList.add('show');
+  });
+  
+  const score = Math.round(correct / total * 100);
+  const pass = score >= (currentQuiz.passingScore || 60);
+  
+  // Save result
+  const result = {
+    quizId: currentQuiz.id,
+    quizTitle: currentQuiz.title,
+    name: currentUser.name,
+    dept: currentUser.dept,
+    score,
+    correct,
+    total,
+    time: Date.now(),
+    answers: { ...userAnswers }
+  };
+  saveResult(result);
+  
+  // Show result
+  showResult(result, pass);
+}
+
+function showResult(result, pass) {
+  const circle = document.getElementById('result-circle');
+  circle.className = `result-circle ${pass ? 'pass' : 'fail'}`;
+  document.getElementById('result-score').textContent = result.score;
+  document.getElementById('result-status').textContent = pass ? '🎉 恭喜通过！' : '😥 未通过';
+  document.getElementById('result-status').style.color = pass ? 'var(--success)' : 'var(--danger)';
+  document.getElementById('result-detail').textContent = `${currentQuiz.title} · 合格线 ${currentQuiz.passingScore || 60} 分`;
+  document.getElementById('stat-correct').textContent = result.correct;
+  document.getElementById('stat-wrong').textContent = result.total - result.correct;
+  document.getElementById('stat-total').textContent = result.total;
+  document.getElementById('review-section').classList.add('hidden');
+  
+  showPage('page-result');
+}
+
+function showReview() {
+  const section = document.getElementById('review-section');
+  section.classList.toggle('hidden');
+  
+  if (section.innerHTML) return;
+  
+  const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
+  section.innerHTML = currentQuiz.questions.map((q, idx) => {
+    const userAns = userAnswers[q.id];
+    const isCorrect = userAns === q.answer;
+    return `
+      <div class="question-card ${isCorrect ? 'correct' : 'wrong'}">
+        <div style="margin-bottom:12px;">
+          <span class="question-number">${idx + 1}</span>
+          <span class="question-text">${q.question}</span>
+        </div>
+        <div style="font-size:14px;margin-bottom:8px;">
+          <span style="color:${isCorrect ? 'var(--success)' : 'var(--danger)'}">
+            ${isCorrect ? '✅ 正确' : `❌ 你的答案：${letters[userAns]} · 正确答案：${letters[q.answer]}`}
+          </span>
+        </div>
+        <div class="explanation show">${q.explanation}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ============ EXPORT ============
+function exportResults() {
+  const data = loadStorage();
+  if (!data.results.length) { alert('暂无成绩数据'); return; }
+  
+  let csv = '\uFEFF姓名,部门,考核名称,分数,答对,总题数,时间\n';
+  data.results.forEach(r => {
+    const time = new Date(r.time).toLocaleString('zh-CN');
+    csv += `${r.name},${r.dept},${r.quizTitle},${r.score},${r.correct},${r.total},${time}\n`;
+  });
+  
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `培训成绩_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ============ INIT ============
+window.addEventListener('DOMContentLoaded', () => {
+  initLogin();
+  // Auto-login if user exists
+  const saved = localStorage.getItem(USER_KEY);
+  if (saved) {
+    try {
+      currentUser = JSON.parse(saved);
+      showPage('page-list');
+      loadQuizList();
+    } catch {}
+  }
+});
+</script>
+</body>
+</html>
