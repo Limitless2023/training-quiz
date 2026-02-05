@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理后台 - 培训考核系统</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    .tab-btn { transition: all 0.2s; }
+    .tab-btn.active { color: #4f46e5; border-bottom: 2px solid #4f46e5; }
+    .tab-content { display: none; opacity: 0; transition: opacity 0.2s; }
+    .tab-content.active { display: block; opacity: 1; }
+    .modal-overlay { background: rgba(0,0,0,0.4); }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- ========== 密码验证页 ========== -->
+  <div id="auth-wall" class="min-h-screen flex items-center justify-center px-4">
+    <div class="w-full max-w-sm">
+      <div class="text-center mb-8">
+        <div class="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+          </svg>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-900">管理后台</h1>
+        <p class="text-gray-500 mt-1">请输入管理密码</p>
+      </div>
+      <div class="bg-white rounded-2xl shadow-sm border p-6 space-y-4">
+        <input id="admin-password" type="password" placeholder="输入密码"
+          class="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+          onkeydown="if(event.key==='Enter')checkPassword()">
+        <button onclick="checkPassword()"
+          class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition">
+          进入
+        </button>
+        <div id="auth-error" class="text-red-500 text-sm text-center hidden">密码错误</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 管理面板 ========== -->
+  <div id="admin-panel" class="hidden">
+    <!-- 顶部栏 -->
+    <div class="bg-white border-b sticky top-0 z-20">
+      <div class="max-w-6xl mx-auto px-4">
+        <div class="flex items-center justify-between py-3">
+          <h1 class="text-lg font-bold text-gray-900">📊 管理后台</h1>
+          <div class="flex items-center gap-3">
+            <a href="index.html" class="text-sm text-indigo-600 hover:underline">← 用户端</a>
+            <button onclick="adminLogout()" class="text-sm text-gray-500 hover:text-gray-700">退出</button>
+          </div>
+        </div>
+        <!-- Tab 导航 -->
+        <div class="flex gap-1 overflow-x-auto -mb-px">
+          <button class="tab-btn active px-4 py-2.5 text-sm font-medium whitespace-nowrap" onclick="switchTab('dashboard')">仪表盘</button>
+          <button class="tab-btn px-4 py-2.5 text-sm font-medium text-gray-500 whitespace-nowrap" onclick="switchTab('department')">按部门</button>
+          <button class="tab-btn px-4 py-2.5 text-sm font-medium text-gray-500 whitespace-nowrap" onclick="switchTab('member')">按成员</button>
+          <button class="tab-btn px-4 py-2.5 text-sm font-medium text-gray-500 whitespace-nowrap" onclick="switchTab('manage')">题目管理</button>
+          <button class="tab-btn px-4 py-2.5 text-sm font-medium text-gray-500 whitespace-nowrap" onclick="switchTab('export')">导出</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="max-w-6xl mx-auto px-4 py-6">
+
+      <!-- ===== 仪表盘 Tab ===== -->
+      <div id="tab-dashboard" class="tab-content active">
+        <div id="dashboard-loading" class="text-center py-20 text-gray-400">
+          <div class="inline-block w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+        </div>
+        <div id="dashboard-content" class="hidden">
+          <!-- 汇总卡片 -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white rounded-xl border p-4">
+              <div class="text-sm text-gray-500">总考核数</div>
+              <div id="stat-quizzes" class="text-2xl font-bold text-gray-900 mt-1">0</div>
+            </div>
+            <div class="bg-white rounded-xl border p-4">
+              <div class="text-sm text-gray-500">总参与人数</div>
+              <div id="stat-participants" class="text-2xl font-bold text-gray-900 mt-1">0</div>
+            </div>
+            <div class="bg-white rounded-xl border p-4">
+              <div class="text-sm text-gray-500">平均分</div>
+              <div id="stat-avg" class="text-2xl font-bold text-indigo-600 mt-1">0</div>
+            </div>
+            <div class="bg-white rounded-xl border p-4">
+              <div class="text-sm text-gray-500">通过率</div>
+              <div id="stat-pass-rate" class="text-2xl font-bold text-green-600 mt-1">0%</div>
+            </div>
+          </div>
+          <!-- 考核表格 -->
+          <div class="bg-white rounded-xl border overflow-hidden">
+            <div class="p-4 border-b">
+              <h3 class="font-bold text-gray-900">各场考核统计</h3>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="text-left px-4 py-3 font-medium text-gray-500">考核名称</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-500">日期</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-500">参与人数</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-500">平均分</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-500">通过率</th>
+                  </tr>
+                </thead>
+                <tbody id="dashboard-table"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 按部门 Tab ===== -->
+      <div id="tab-department" class="tab-content">
+        <div class="bg-white rounded-xl border p-4 mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">选择考核</label>
+          <select id="dept-quiz-select" onchange="loadDepartmentStats()"
+            class="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
+            <option value="">-- 请选择 --</option>
+          </select>
+        </div>
+        <div id="dept-content" class="hidden">
+          <div class="bg-white rounded-xl border overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="text-left px-4 py-3 font-medium text-gray-500">部门</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-500">参与人数</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-500">平均分</th>
+                    <th class="text-center px-4 py-3 font-medium text-gray-500">通过率</th>
+                  </tr>
+                </thead>
+                <tbody id="dept-table"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div id="dept-empty" class="hidden text-center py-10 text-gray-400">请选择一个考核</div>
+      </div>
+
+      <!-- ===== 按成员 Tab ===== -->
+      <div id="tab-member" class="tab-content">
+        <div class="bg-white rounded-xl border p-4 mb-4">
+          <input id="member-search" type="text" placeholder="搜索姓名..." oninput="searchMembers()"
+            class="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+        </div>
+        <div id="member-content" class="bg-white rounded-xl border overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="text-left px-4 py-3 font-medium text-gray-500">姓名</th>
+                  <th class="text-left px-4 py-3 font-medium text-gray-500">部门</th>
+                  <th class="text-left px-4 py-3 font-medium text-gray-500">考核名称</th>
+                  <th class="text-center px-4 py-3 font-medium text-gray-500">分数</th>
+                  <th class="text-center px-4 py-3 font-medium text-gray-500">答对/总题</th>
+                  <th class="text-center px-4 py-3 font-medium text-gray-500">时间</th>
+                </tr>
+              </thead>
+              <tbody id="member-table"></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="member-empty" class="hidden text-center py-10 text-gray-400">暂无数据</div>
+      </div>
+
+      <!-- ===== 题目管理 Tab ===== -->
+      <div id="tab-manage" class="tab-content">
+        <div class="grid md:grid-cols-3 gap-4">
+          <!-- 左侧：考核列表 -->
+          <div class="bg-white rounded-xl border overflow-hidden">
+            <div class="p-4 border-b flex items-center justify-between">
+              <h3 class="font-bold text-gray-900">考核列表</h3>
+              <button onclick="showQuizForm()" class="text-sm px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">+ 新增</button>
+            </div>
+            <div id="manage-quiz-list" class="divide-y max-h-[60vh] overflow-y-auto">
+              <!-- 动态 -->
+            </div>
+          </div>
+          <!-- 右侧：题目列表 -->
+          <div class="md:col-span-2 bg-white rounded-xl border overflow-hidden">
+            <div class="p-4 border-b flex items-center justify-between">
+              <h3 class="font-bold text-gray-900" id="manage-quiz-title">请选择考核</h3>
+              <button id="btn-add-question" onclick="showQuestionForm()" class="hidden text-sm px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">+ 新增题目</button>
+            </div>
+            <div id="manage-questions" class="divide-y max-h-[60vh] overflow-y-auto">
+              <div class="p-10 text-center text-gray-400">← 请先选择一个考核</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 导出 Tab ===== -->
+      <div id="tab-export" class="tab-content">
+        <div class="bg-white rounded-xl border p-6 max-w-md mx-auto">
+          <h3 class="font-bold text-gray-900 mb-4">导出考核成绩</h3>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">选择考核</label>
+              <select id="export-quiz-select"
+                class="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
+                <option value="">-- 请选择 --</option>
+              </select>
+            </div>
+            <button onclick="exportCSV()"
+              class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition">
+              📥 导出 CSV
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========== 模态框：新增/编辑考核 ========== -->
+  <div id="modal-quiz" class="fixed inset-0 z-50 hidden items-center justify-center p-4" style="display:none;">
+    <div class="modal-overlay absolute inset-0" onclick="closeModal('modal-quiz')"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6 z-10 max-h-[90vh] overflow-y-auto">
+      <h3 id="modal-quiz-title" class="text-lg font-bold mb-4">新增考核</h3>
+      <input type="hidden" id="quiz-form-id">
+      <div class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">考核标题 *</label>
+          <input id="quiz-form-title" type="text" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">日期</label>
+            <input id="quiz-form-date" type="date" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">培训师</label>
+            <input id="quiz-form-trainer" type="text" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">描述</label>
+          <textarea id="quiz-form-desc" rows="2" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">合格线</label>
+            <input id="quiz-form-passing" type="number" value="70" min="0" max="100" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">状态</label>
+            <select id="quiz-form-active" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
+              <option value="true">已激活</option>
+              <option value="false">未激活</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="flex gap-3 mt-6">
+        <button onclick="closeModal('modal-quiz')" class="flex-1 py-2.5 border rounded-lg hover:bg-gray-50">取消</button>
+        <button onclick="saveQuiz()" class="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 模态框：新增/编辑题目 ========== -->
+  <div id="modal-question" class="fixed inset-0 z-50 hidden items-center justify-center p-4" style="display:none;">
+    <div class="modal-overlay absolute inset-0" onclick="closeModal('modal-question')"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 z-10 max-h-[90vh] overflow-y-auto">
+      <h3 id="modal-question-title" class="text-lg font-bold mb-4">新增题目</h3>
+      <input type="hidden" id="question-form-id">
+      <div class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">题型 *</label>
+          <select id="question-form-type" onchange="onQuestionTypeChange()"
+            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
+            <option value="single">单选</option>
+            <option value="multiple">多选</option>
+            <option value="truefalse">判断</option>
+            <option value="fill">填空</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">题目 *</label>
+          <textarea id="question-form-text" rows="3" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+        </div>
+        <!-- 选项区域（单选/多选） -->
+        <div id="options-area">
+          <label class="block text-sm font-medium text-gray-700 mb-1">选项</label>
+          <div id="options-list" class="space-y-2">
+            <!-- 动态 -->
+          </div>
+          <button onclick="addOption()" class="mt-2 text-sm text-indigo-600 hover:underline">+ 添加选项</button>
+        </div>
+        <!-- 答案区域 -->
+        <div id="answer-area">
+          <label class="block text-sm font-medium text-gray-700 mb-1">正确答案 *</label>
+          <div id="answer-input">
+            <!-- 根据题型动态切换 -->
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">排序号</label>
+          <input id="question-form-order" type="number" value="0" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">解析</label>
+          <textarea id="question-form-explanation" rows="2" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+        </div>
+      </div>
+      <div class="flex gap-3 mt-6">
+        <button onclick="closeModal('modal-question')" class="flex-1 py-2.5 border rounded-lg hover:bg-gray-50">取消</button>
+        <button onclick="saveQuestion()" class="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">保存</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ============================================
+// Supabase 初始化
+// ============================================
+const SUPABASE_URL = 'https://qdipqdysblxckgkcpnqj.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXBxZHlzYmx4Y2tna2NwbnFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzMDA0NDIsImV4cCI6MjA4NTg3NjQ0Mn0.x0_AQz7tcfvt6s3CdyHfnsBFFDkY32IA1W-7eidxvXs';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const ADMIN_PASSWORD = 'powerlaw2026';
+
+// ============================================
+// 全局缓存
+// ============================================
+let allQuizzes = [];
+let allAttempts = [];
+let allProfiles = [];
+let selectedManageQuizId = null;
+
+// ============================================
+// 密码验证
+// ============================================
+function checkPassword() {
+  const pwd = document.getElementById('admin-password').value;
+  if (pwd === ADMIN_PASSWORD) {
+    sessionStorage.setItem('admin_auth', 'true');
+    showAdminPanel();
+  } else {
+    document.getElementById('auth-error').classList.remove('hidden');
+  }
+}
+
+function showAdminPanel() {
+  document.getElementById('auth-wall').style.display = 'none';
+  document.getElementById('admin-panel').classList.remove('hidden');
+  loadAllData();
+}
+
+function adminLogout() {
+  sessionStorage.removeItem('admin_auth');
+  location.reload();
+}
+
+// 初始化检查
+if (sessionStorage.getItem('admin_auth') === 'true') {
+  showAdminPanel();
+}
+
+// ============================================
+// Tab 切换
+// ============================================
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.remove('active');
+    b.classList.add('text-gray-500');
+  });
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  event.target.classList.add('active');
+  event.target.classList.remove('text-gray-500');
+  const content = document.getElementById('tab-' + tab);
+  if (content) setTimeout(() => content.classList.add('active'), 10);
+
+  // 按需加载
+  switch(tab) {
+    case 'dashboard': renderDashboard(); break;
+    case 'department': populateQuizSelects(); break;
+    case 'member': loadMembers(); break;
+    case 'manage': loadManageQuizzes(); break;
+    case 'export': populateQuizSelects(); break;
+  }
+}
+
+// ============================================
+// 加载全部数据
+// ============================================
+async function loadAllData() {
+  try {
+    const [quizRes, attRes, profRes] = await Promise.all([
+      supabase.from('quizzes').select('*').order('created_at', { ascending: false }),
+      supabase.from('attempts').select('*'),
+      supabase.from('profiles').select('*')
+    ]);
+    if (quizRes.error) throw quizRes.error;
+    if (attRes.error) throw attRes.error;
+    if (profRes.error) throw profRes.error;
+
+    allQuizzes = quizRes.data || [];
+    allAttempts = attRes.data || [];
+    allProfiles = profRes.data || [];
+
+    renderDashboard();
+    populateQuizSelects();
+  } catch (err) {
+    console.error('加载数据失败:', err);
+    alert('加载数据失败: ' + (err.message || '网络错误'));
+  }
+}
+
+// ============================================
+// 仪表盘
+// ============================================
+function renderDashboard() {
+  document.getElementById('dashboard-loading').classList.add('hidden');
+  document.getElementById('dashboard-content').classList.remove('hidden');
+
+  const totalQuizzes = allQuizzes.length;
+  const uniqueUsers = new Set(allAttempts.map(a => a.user_id)).size;
+  const avgScore = allAttempts.length > 0
+    ? Math.round(allAttempts.reduce((s, a) => s + a.score, 0) / allAttempts.length)
+    : 0;
+
+  // 计算通过率需要每个 quiz 的 passing_score
+  const quizMap = {};
+  allQuizzes.forEach(q => { quizMap[q.id] = q; });
+  const passCount = allAttempts.filter(a => {
+    const q = quizMap[a.quiz_id];
+    return q && a.score >= q.passing_score;
+  }).length;
+  const passRate = allAttempts.length > 0 ? Math.round((passCount / allAttempts.length) * 100) : 0;
+
+  document.getElementById('stat-quizzes').textContent = totalQuizzes;
+  document.getElementById('stat-participants').textContent = uniqueUsers;
+  document.getElementById('stat-avg').textContent = avgScore;
+  document.getElementById('stat-pass-rate').textContent = passRate + '%';
+
+  // 每场考核统计
+  const tbody = document.getElementById('dashboard-table');
+  tbody.innerHTML = '';
+  allQuizzes.forEach(quiz => {
+    const qAttempts = allAttempts.filter(a => a.quiz_id === quiz.id);
+    const count = qAttempts.length;
+    const avg = count > 0 ? Math.round(qAttempts.reduce((s, a) => s + a.score, 0) / count) : '-';
+    const pass = count > 0 ? Math.round(qAttempts.filter(a => a.score >= quiz.passing_score).length / count * 100) + '%' : '-';
+    tbody.innerHTML += `
+      <tr class="border-t hover:bg-gray-50">
+        <td class="px-4 py-3 font-medium text-gray-900">${escHtml(quiz.title)}</td>
+        <td class="px-4 py-3 text-center text-gray-500">${quiz.date || '-'}</td>
+        <td class="px-4 py-3 text-center">${count}</td>
+        <td class="px-4 py-3 text-center font-medium text-indigo-600">${avg}</td>
+        <td class="px-4 py-3 text-center font-medium text-green-600">${pass}</td>
+      </tr>
+    `;
+  });
+  if (allQuizzes.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-10 text-center text-gray-400">暂无考核数据</td></tr>';
+  }
+}
+
+// ============================================
+// 填充考核下拉框
+// ============================================
+function populateQuizSelects() {
+  const html = allQuizzes.map(q => `<option value="${q.id}">${escHtml(q.title)}</option>`).join('');
+  ['dept-quiz-select', 'export-quiz-select'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      const current = el.value;
+      el.innerHTML = '<option value="">-- 请选择 --</option>' + html;
+      if (current) el.value = current;
+    }
+  });
+}
+
+// ============================================
+// 按部门统计
+// ============================================
+function loadDepartmentStats() {
+  const quizId = document.getElementById('dept-quiz-select').value;
+  const contentEl = document.getElementById('dept-content');
+  const emptyEl = document.getElementById('dept-empty');
+
+  if (!quizId) {
+    contentEl.classList.add('hidden');
+    emptyEl.classList.remove('hidden');
+    return;
+  }
+
+  contentEl.classList.remove('hidden');
+  emptyEl.classList.add('hidden');
+
+  const quiz = allQuizzes.find(q => q.id === quizId);
+  const qAttempts = allAttempts.filter(a => a.quiz_id === quizId);
+
+  // 按用户分组，取每用户最高分
+  const userBest = {};
+  qAttempts.forEach(a => {
+    if (!userBest[a.user_id] || a.score > userBest[a.user_id].score) {
+      userBest[a.user_id] = a;
+    }
+  });
+
+  // 按部门汇总
+  const profMap = {};
+  allProfiles.forEach(p => { profMap[p.id] = p; });
+
+  const deptStats = {};
+  Object.values(userBest).forEach(a => {
+    const prof = profMap[a.user_id];
+    if (!prof) return;
+    const dept = prof.department;
+    if (!deptStats[dept]) deptStats[dept] = { scores: [], count: 0 };
+    deptStats[dept].scores.push(a.score);
+    deptStats[dept].count++;
+  });
+
+  const tbody = document.getElementById('dept-table');
+  tbody.innerHTML = '';
+
+  const depts = Object.keys(deptStats).sort();
+  if (depts.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="px-4 py-10 text-center text-gray-400">暂无数据</td></tr>';
+    return;
+  }
+
+  depts.forEach(dept => {
+    const stat = deptStats[dept];
+    const avg = Math.round(stat.scores.reduce((s, v) => s + v, 0) / stat.count);
+    const pass = Math.round(stat.scores.filter(s => s >= quiz.passing_score).length / stat.count * 100);
+    tbody.innerHTML += `
+      <tr class="border-t hover:bg-gray-50">
+        <td class="px-4 py-3 font-medium text-gray-900">${escHtml(dept)}</td>
+        <td class="px-4 py-3 text-center">${stat.count}</td>
+        <td class="px-4 py-3 text-center font-medium text-indigo-600">${avg}</td>
+        <td class="px-4 py-3 text-center font-medium text-green-600">${pass}%</td>
+      </tr>
+    `;
+  });
+}
+
+// ============================================
+// 按成员
+// ============================================
+let memberData = [];
+
+async function loadMembers() {
+  const profMap = {};
+  allProfiles.forEach(p => { profMap[p.id] = p; });
+  const quizMap = {};
+  allQuizzes.forEach(q => { quizMap[q.id] = q; });
+
+  memberData = allAttempts.map(a => ({
+    name: profMap[a.user_id]?.name || '未知',
+    department: profMap[a.user_id]?.department || '-',
+    quiz: quizMap[a.quiz_id]?.title || '未知考核',
+    score: a.score,
+    correct: a.correct_count,
+    total: a.total,
+    time: a.completed_at ? new Date(a.completed_at).toLocaleString('zh-CN') : '-'
+  })).sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+
+  renderMembers(memberData);
+}
+
+function searchMembers() {
+  const q = document.getElementById('member-search').value.trim().toLowerCase();
+  const filtered = q ? memberData.filter(m => m.name.toLowerCase().includes(q)) : memberData;
+  renderMembers(filtered);
+}
+
+function renderMembers(data) {
+  const tbody = document.getElementById('member-table');
+  const emptyEl = document.getElementById('member-empty');
+
+  if (data.length === 0) {
+    tbody.innerHTML = '';
+    emptyEl.classList.remove('hidden');
+    document.getElementById('member-content').classList.add('hidden');
+    return;
+  }
+
+  emptyEl.classList.add('hidden');
+  document.getElementById('member-content').classList.remove('hidden');
+
+  tbody.innerHTML = data.map(m => `
+    <tr class="border-t hover:bg-gray-50">
+      <td class="px-4 py-3 font-medium text-gray-900">${escHtml(m.name)}</td>
+      <td class="px-4 py-3 text-gray-500">${escHtml(m.department)}</td>
+      <td class="px-4 py-3 text-gray-700">${escHtml(m.quiz)}</td>
+      <td class="px-4 py-3 text-center font-medium ${m.score >= 70 ? 'text-green-600' : 'text-red-500'}">${m.score}</td>
+      <td class="px-4 py-3 text-center text-gray-500">${m.correct}/${m.total}</td>
+      <td class="px-4 py-3 text-center text-gray-400 text-xs">${m.time}</td>
+    </tr>
+  `).join('');
+}
+
+// ============================================
+// 题目管理
+// ============================================
+async function loadManageQuizzes() {
+  const listEl = document.getElementById('manage-quiz-list');
+  listEl.innerHTML = '';
+  allQuizzes.forEach(quiz => {
+    const div = document.createElement('div');
+    div.className = `p-3 cursor-pointer hover:bg-indigo-50 transition ${selectedManageQuizId === quiz.id ? 'bg-indigo-50 border-l-4 border-indigo-600' : ''}`;
+    div.onclick = () => selectManageQuiz(quiz.id);
+    div.innerHTML = `
+      <div class="font-medium text-sm text-gray-900 truncate">${escHtml(quiz.title)}</div>
+      <div class="text-xs text-gray-400 mt-0.5">${quiz.date || '未设置日期'} · ${quiz.is_active ? '已激活' : '未激活'}</div>
+    `;
+    listEl.appendChild(div);
+  });
+  if (allQuizzes.length === 0) {
+    listEl.innerHTML = '<div class="p-4 text-center text-gray-400 text-sm">暂无考核</div>';
+  }
+}
+
+async function selectManageQuiz(quizId) {
+  selectedManageQuizId = quizId;
+  loadManageQuizzes(); // 刷新高亮
+
+  const quiz = allQuizzes.find(q => q.id === quizId);
+  document.getElementById('manage-quiz-title').textContent = quiz ? quiz.title : '题目管理';
+  document.getElementById('btn-add-question').classList.remove('hidden');
+
+  const questionsEl = document.getElementById('manage-questions');
+  questionsEl.innerHTML = '<div class="p-10 text-center text-gray-400"><div class="inline-block w-6 h-6 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div></div>';
+
+  try {
+    const { data: questions, error } = await supabase
+      .from('questions')
+      .select('*')
+      .eq('quiz_id', quizId)
+      .order('order_num', { ascending: true });
+    if (error) throw error;
+
+    if (!questions || questions.length === 0) {
+      questionsEl.innerHTML = '<div class="p-10 text-center text-gray-400">暂无题目，点击「新增题目」开始添加</div>';
+      return;
+    }
+
+    const typeLabels = { single: '单选', multiple: '多选', truefalse: '判断', fill: '填空' };
+    questionsEl.innerHTML = '';
+    questions.forEach((q, idx) => {
+      const div = document.createElement('div');
+      div.className = 'p-4 hover:bg-gray-50 transition';
+      div.innerHTML = `
+        <div class="flex items-start justify-between gap-2">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-xs text-gray-400">#${q.order_num || idx + 1}</span>
+              <span class="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">${typeLabels[q.type] || q.type}</span>
+            </div>
+            <p class="text-sm text-gray-900 line-clamp-2">${escHtml(q.question)}</p>
+          </div>
+          <div class="flex gap-1 flex-shrink-0">
+            <button onclick="editQuestion('${q.id}')" class="text-xs px-2 py-1 text-indigo-600 hover:bg-indigo-50 rounded">编辑</button>
+            <button onclick="deleteQuestion('${q.id}')" class="text-xs px-2 py-1 text-red-500 hover:bg-red-50 rounded">删除</button>
+          </div>
+        </div>
+      `;
+      questionsEl.appendChild(div);
+    });
+  } catch (err) {
+    questionsEl.innerHTML = `<div class="p-10 text-center text-red-500">加载失败: ${escHtml(err.message)}</div>`;
+  }
+}
+
+// ============================================
+// 考核表单
+// ============================================
+function showQuizForm(quizId) {
+  const quiz = quizId ? allQuizzes.find(q => q.id === quizId) : null;
+  document.getElementById('modal-quiz-title').textContent = quiz ? '编辑考核' : '新增考核';
+  document.getElementById('quiz-form-id').value = quiz ? quiz.id : '';
+  document.getElementById('quiz-form-title').value = quiz ? quiz.title : '';
+  document.getElementById('quiz-form-date').value = quiz ? quiz.date || '' : '';
+  document.getElementById('quiz-form-trainer').value = quiz ? quiz.trainer || '' : '';
+  document.getElementById('quiz-form-desc').value = quiz ? quiz.description || '' : '';
+  document.getElementById('quiz-form-passing').value = quiz ? quiz.passing_score : 70;
+  document.getElementById('quiz-form-active').value = quiz ? String(quiz.is_active) : 'true';
+  openModal('modal-quiz');
+}
+
+async function saveQuiz() {
+  const id = document.getElementById('quiz-form-id').value;
+  const title = document.getElementById('quiz-form-title').value.trim();
+  if (!title) { alert('请输入考核标题'); return; }
+
+  const payload = {
+    title,
+    date: document.getElementById('quiz-form-date').value || null,
+    trainer: document.getElementById('quiz-form-trainer').value.trim() || null,
+    description: document.getElementById('quiz-form-desc').value.trim() || null,
+    passing_score: parseInt(document.getElementById('quiz-form-passing').value) || 70,
+    is_active: document.getElementById('quiz-form-active').value === 'true'
+  };
+
+  try {
+    if (id) {
+      const { error } = await supabase.from('quizzes').update(payload).eq('id', id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase.from('quizzes').insert(payload);
+      if (error) throw error;
+    }
+    closeModal('modal-quiz');
+    await loadAllData();
+    loadManageQuizzes();
+  } catch (err) {
+    alert('保存失败: ' + (err.message || '网络错误'));
+  }
+}
+
+// ============================================
+// 题目表单
+// ============================================
+let editingQuestionData = null;
+
+function showQuestionForm(questionId) {
+  editingQuestionData = null;
+  document.getElementById('modal-question-title').textContent = questionId ? '编辑题目' : '新增题目';
+  document.getElementById('question-form-id').value = questionId || '';
+  document.getElementById('question-form-type').value = 'single';
+  document.getElementById('question-form-text').value = '';
+  document.getElementById('question-form-order').value = 0;
+  document.getElementById('question-form-explanation').value = '';
+
+  if (questionId) {
+    // 异步加载题目数据
+    loadQuestionForEdit(questionId);
+  } else {
+    onQuestionTypeChange();
+    openModal('modal-question');
+  }
+}
+
+async function loadQuestionForEdit(questionId) {
+  try {
+    const { data: q, error } = await supabase.from('questions').select('*').eq('id', questionId).single();
+    if (error) throw error;
+
+    editingQuestionData = q;
+    document.getElementById('question-form-id').value = q.id;
+    document.getElementById('question-form-type').value = q.type;
+    document.getElementById('question-form-text').value = q.question;
+    document.getElementById('question-form-order').value = q.order_num || 0;
+    document.getElementById('question-form-explanation').value = q.explanation || '';
+
+    onQuestionTypeChange();
+
+    // 填充选项
+    const options = q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : [];
+    if (q.type === 'single' || q.type === 'multiple') {
+      const optList = document.getElementById('options-list');
+      optList.innerHTML = '';
+      options.forEach((opt, i) => addOption(opt));
+    }
+
+    // 填充答案
+    const answer = typeof q.answer === 'string' ? JSON.parse(q.answer) : q.answer;
+    switch(q.type) {
+      case 'single': {
+        const radio = document.querySelector(`input[name="q_answer_single"][value="${answer}"]`);
+        if (radio) radio.checked = true;
+        break;
+      }
+      case 'multiple': {
+        const indices = Array.isArray(answer) ? answer : [];
+        indices.forEach(i => {
+          const cb = document.querySelector(`input[data-answer-multi][value="${i}"]`);
+          if (cb) cb.checked = true;
+        });
+        break;
+      }
+      case 'truefalse': {
+        const sel = document.getElementById('answer-truefalse');
+        if (sel) sel.value = String(answer);
+        break;
+      }
+      case 'fill': {
+        const inp = document.getElementById('answer-fill');
+        if (inp) inp.value = String(answer);
+        break;
+      }
+    }
+
+    openModal('modal-question');
+  } catch (err) {
+    alert('加载题目失败: ' + err.message);
+  }
+}
+
+function onQuestionTypeChange() {
+  const type = document.getElementById('question-form-type').value;
+  const optArea = document.getElementById('options-area');
+  const answerInput = document.getElementById('answer-input');
+  const optList = document.getElementById('options-list');
+
+  // 显示/隐藏选项区域
+  if (type === 'single' || type === 'multiple') {
+    optArea.style.display = 'block';
+    if (optList.children.length === 0) {
+      addOption(); addOption(); addOption(); addOption();
+    }
+  } else {
+    optArea.style.display = 'none';
+    optList.innerHTML = '';
+  }
+
+  // 答案输入区
+  switch(type) {
+    case 'single':
+      answerInput.innerHTML = `<p class="text-xs text-gray-400">选项索引（从 0 开始）</p>
+        <div id="answer-single-radios" class="flex flex-wrap gap-2 mt-1"></div>`;
+      updateAnswerRadios();
+      break;
+    case 'multiple':
+      answerInput.innerHTML = `<p class="text-xs text-gray-400">勾选正确选项</p>
+        <div id="answer-multi-checks" class="flex flex-wrap gap-2 mt-1"></div>`;
+      updateAnswerChecks();
+      break;
+    case 'truefalse':
+      answerInput.innerHTML = `<select id="answer-truefalse" class="w-full px-3 py-2 border rounded-lg bg-white">
+        <option value="true">正确</option><option value="false">错误</option></select>`;
+      break;
+    case 'fill':
+      answerInput.innerHTML = `<input id="answer-fill" type="text" placeholder="正确答案文本" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">`;
+      break;
+  }
+}
+
+function addOption(value) {
+  const list = document.getElementById('options-list');
+  const idx = list.children.length;
+  const div = document.createElement('div');
+  div.className = 'flex items-center gap-2';
+  div.innerHTML = `
+    <span class="text-xs text-gray-400 w-5">${idx}</span>
+    <input type="text" value="${escHtml(value || '')}" placeholder="选项 ${idx}" class="flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none option-input" oninput="updateAnswerRadios();updateAnswerChecks()">
+    <button onclick="this.parentElement.remove();reindexOptions()" class="text-red-400 hover:text-red-600 text-sm px-1">✕</button>
+  `;
+  list.appendChild(div);
+  updateAnswerRadios();
+  updateAnswerChecks();
+}
+
+function reindexOptions() {
+  const list = document.getElementById('options-list');
+  Array.from(list.children).forEach((div, i) => {
+    div.querySelector('span').textContent = i;
+  });
+  updateAnswerRadios();
+  updateAnswerChecks();
+}
+
+function updateAnswerRadios() {
+  const container = document.getElementById('answer-single-radios');
+  if (!container) return;
+  const opts = document.querySelectorAll('.option-input');
+  container.innerHTML = '';
+  opts.forEach((opt, i) => {
+    container.innerHTML += `<label class="flex items-center gap-1 text-sm"><input type="radio" name="q_answer_single" value="${i}" class="text-indigo-600"> ${i}: ${escHtml(opt.value || '选项' + i)}</label>`;
+  });
+}
+
+function updateAnswerChecks() {
+  const container = document.getElementById('answer-multi-checks');
+  if (!container) return;
+  const opts = document.querySelectorAll('.option-input');
+  container.innerHTML = '';
+  opts.forEach((opt, i) => {
+    container.innerHTML += `<label class="flex items-center gap-1 text-sm"><input type="checkbox" data-answer-multi value="${i}" class="text-indigo-600 rounded"> ${i}: ${escHtml(opt.value || '选项' + i)}</label>`;
+  });
+}
+
+async function saveQuestion() {
+  const id = document.getElementById('question-form-id').value;
+  const type = document.getElementById('question-form-type').value;
+  const question = document.getElementById('question-form-text').value.trim();
+  const order_num = parseInt(document.getElementById('question-form-order').value) || 0;
+  const explanation = document.getElementById('question-form-explanation').value.trim();
+
+  if (!question) { alert('请输入题目'); return; }
+  if (!selectedManageQuizId) { alert('请先选择一个考核'); return; }
+
+  // 收集选项
+  let options = null;
+  if (type === 'single' || type === 'multiple') {
+    const optInputs = document.querySelectorAll('.option-input');
+    options = Array.from(optInputs).map(i => i.value.trim()).filter(Boolean);
+    if (options.length < 2) { alert('至少需要2个选项'); return; }
+  }
+
+  // 收集答案
+  let answer = null;
+  switch(type) {
+    case 'single': {
+      const checked = document.querySelector('input[name="q_answer_single"]:checked');
+      if (!checked) { alert('请选择正确答案'); return; }
+      answer = parseInt(checked.value);
+      break;
+    }
+    case 'multiple': {
+      const checks = document.querySelectorAll('input[data-answer-multi]:checked');
+      if (checks.length === 0) { alert('请选择正确答案'); return; }
+      answer = Array.from(checks).map(c => parseInt(c.value));
+      break;
+    }
+    case 'truefalse':
+      answer = document.getElementById('answer-truefalse').value === 'true';
+      break;
+    case 'fill':
+      answer = document.getElementById('answer-fill').value.trim();
+      if (!answer) { alert('请输入正确答案'); return; }
+      break;
+  }
+
+  const payload = {
+    quiz_id: selectedManageQuizId,
+    type,
+    question,
+    options: options ? JSON.stringify(options) : null,
+    answer: JSON.stringify(answer),
+    explanation: explanation || null,
+    order_num
+  };
+
+  try {
+    if (id) {
+      const { error } = await supabase.from('questions').update(payload).eq('id', id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase.from('questions').insert(payload);
+      if (error) throw error;
+    }
+    closeModal('modal-question');
+    selectManageQuiz(selectedManageQuizId);
+  } catch (err) {
+    alert('保存失败: ' + (err.message || '网络错误'));
+  }
+}
+
+function editQuestion(questionId) {
+  showQuestionForm(questionId);
+}
+
+async function deleteQuestion(questionId) {
+  if (!confirm('确定删除该题目吗？')) return;
+  try {
+    const { error } = await supabase.from('questions').delete().eq('id', questionId);
+    if (error) throw error;
+    selectManageQuiz(selectedManageQuizId);
+  } catch (err) {
+    alert('删除失败: ' + err.message);
+  }
+}
+
+// ============================================
+// 导出 CSV
+// ============================================
+async function exportCSV() {
+  const quizId = document.getElementById('export-quiz-select').value;
+  if (!quizId) { alert('请选择考核'); return; }
+
+  const quiz = allQuizzes.find(q => q.id === quizId);
+  const qAttempts = allAttempts.filter(a => a.quiz_id === quizId);
+
+  if (qAttempts.length === 0) { alert('该考核暂无成绩数据'); return; }
+
+  const profMap = {};
+  allProfiles.forEach(p => { profMap[p.id] = p; });
+
+  // BOM + CSV header
+  let csv = '\uFEFF姓名,部门,分数,答对数,总题数,完成时间\n';
+  qAttempts.forEach(a => {
+    const prof = profMap[a.user_id] || {};
+    const time = a.completed_at ? new Date(a.completed_at).toLocaleString('zh-CN') : '';
+    csv += `${csvEscape(prof.name || '未知')},${csvEscape(prof.department || '-')},${a.score},${a.correct_count},${a.total},${csvEscape(time)}\n`;
+  });
+
+  // 下载
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${quiz.title}_成绩导出.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function csvEscape(str) {
+  if (!str) return '';
+  str = String(str);
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return '"' + str.replace(/"/g, '""') + '"';
+  }
+  return str;
+}
+
+// ============================================
+// 模态框控制
+// ============================================
+function openModal(id) {
+  const modal = document.getElementById(id);
+  modal.style.display = 'flex';
+  setTimeout(() => modal.classList.remove('hidden'), 10);
+}
+
+function closeModal(id) {
+  const modal = document.getElementById(id);
+  modal.classList.add('hidden');
+  setTimeout(() => { modal.style.display = 'none'; }, 200);
+}
+
+// ============================================
+// 工具函数
+// ============================================
+function escHtml(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = String(str);
+  return div.innerHTML;
+}
+</script>
+</body>
+</html>
