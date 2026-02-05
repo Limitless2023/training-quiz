@@ -341,11 +341,16 @@ let lastResultData = null;
 
 function initSupabase() {
   try {
+    console.log('[init] window.supabase exists:', !!window.supabase);
+    console.log('[init] createClient exists:', !!(window.supabase && window.supabase.createClient));
     if (window.supabase && window.supabase.createClient) {
       db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      console.log('[init] db created:', !!db);
       return true;
+    } else {
+      console.error('[init] Supabase SDK not loaded!');
     }
-  } catch(e) { console.error(e); }
+  } catch(e) { console.error('[init] Error:', e); }
   return false;
 }
 
@@ -364,12 +369,19 @@ function navigateTo(page, data) {
 
 // ============ Login ============
 document.addEventListener('DOMContentLoaded', function() {
-  initSupabase();
+  console.log('[DOMContentLoaded] fired');
+  var ok = initSupabase();
+  console.log('[DOMContentLoaded] initSupabase result:', ok);
+  if (!ok) {
+    // Show visible error on page
+    var errDiv = document.getElementById('login-error');
+    if (errDiv) { errDiv.textContent = '系统初始化失败，请刷新页面重试'; errDiv.style.display = 'block'; }
+  }
   document.getElementById('login-name').addEventListener('keydown', function(e) { if(e.key==='Enter') handleLogin(); });
 
   // Auto-login
-  const saved = localStorage.getItem('quiz_user');
-  if (saved) {
+  var saved = localStorage.getItem('quiz_user');
+  if (saved && ok) {
     try {
       currentUser = JSON.parse(saved);
       document.getElementById('user-badge').textContent = currentUser.name + ' · ' + currentUser.department;
@@ -379,38 +391,64 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function handleLogin() {
-  const name = document.getElementById('login-name').value.trim();
-  const dept = document.getElementById('login-dept').value;
+  console.log('[login] handleLogin called');
+  var name = document.getElementById('login-name').value.trim();
+  var dept = document.getElementById('login-dept').value;
   hideLoginErr();
 
   if (!name) { showLoginErr('请输入姓名'); return; }
   if (!dept) { showLoginErr('请选择部门'); return; }
 
-  const btn = document.getElementById('btn-login');
+  if (!db) {
+    showLoginErr('系统未初始化，请刷新页面');
+    console.error('[login] db is null!');
+    return;
+  }
+
+  var btn = document.getElementById('btn-login');
   btn.disabled = true;
   btn.textContent = '登录中...';
+  console.log('[login] querying profiles for:', name, dept);
 
   try {
-    let { data: profile, error } = await db
+    // Add timeout to prevent hanging
+    var controller = new AbortController();
+    var timeoutId = setTimeout(function() { controller.abort(); }, 15000);
+
+    var result = await db
       .from('profiles').select('*')
       .eq('name', name).eq('department', dept)
-      .maybeSingle();
+      .maybeSingle()
+      .abortSignal(controller.signal);
+    clearTimeout(timeoutId);
+
+    console.log('[login] query result:', result);
+    var profile = result.data;
+    var error = result.error;
     if (error) throw error;
 
     if (!profile) {
-      const { data: np, error: ie } = await db
-        .from('profiles').insert({ name, department: dept })
+      console.log('[login] creating new profile');
+      var insertResult = await db
+        .from('profiles').insert({ name: name, department: dept })
         .select().single();
-      if (ie) throw ie;
-      profile = np;
+      console.log('[login] insert result:', insertResult);
+      if (insertResult.error) throw insertResult.error;
+      profile = insertResult.data;
     }
 
     currentUser = profile;
     localStorage.setItem('quiz_user', JSON.stringify(profile));
     document.getElementById('user-badge').textContent = profile.name + ' · ' + profile.department;
+    console.log('[login] success, navigating to list');
     navigateTo('list');
   } catch(err) {
-    showLoginErr('登录失败: ' + (err.message || JSON.stringify(err)));
+    console.error('[login] error:', err);
+    if (err.name === 'AbortError') {
+      showLoginErr('请求超时（15秒），请检查网络连接后重试');
+    } else {
+      showLoginErr('登录失败: ' + (err.message || JSON.stringify(err)));
+    }
   } finally {
     btn.disabled = false;
     btn.textContent = '进入系统';
