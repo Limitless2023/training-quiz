@@ -190,7 +190,7 @@ body {
             <option>市场部</option><option>法务部</option><option>财务部</option><option>其他</option>
           </select>
         </div>
-        <button id="btn-login" class="btn btn-primary">进入系统</button>
+        <button id="btn-login" class="btn btn-primary" onclick="handleLogin()">进入系统</button>
         <div id="login-error" class="error-msg" style="display:none;"></div>
       </div>
     </div>
@@ -273,8 +273,22 @@ body {
   </div>
 </div>
 
-<!-- Supabase SDK -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<!-- Supabase SDK (multiple fallbacks) -->
+<script>
+// Define handleLogin early so onclick works even if SDK hasn't loaded
+async function handleLogin() {
+  const errEl = document.getElementById('login-error');
+  if (!db) {
+    errEl.textContent = 'SDK 正在加载，请稍候再试...（如持续出现请检查网络）';
+    errEl.style.display = 'block';
+    // Retry init
+    initSupabase();
+    return;
+  }
+  _doLogin();
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" onerror="document.getElementById('login-error').textContent='CDN加载失败，尝试备用...';document.getElementById('login-error').style.display='block';"></script>
 <script>
 // ============ Init ============
 const SUPABASE_URL = 'https://qdipqdysblxckgkcpnqj.supabase.co';
@@ -312,12 +326,7 @@ function navigateTo(page, data) {
 
 // ============ Login ============
 document.addEventListener('DOMContentLoaded', function() {
-  if (!initSupabase()) {
-    showLoginErr('Supabase SDK 加载失败，请刷新页面');
-    return;
-  }
-  
-  document.getElementById('btn-login').addEventListener('click', handleLogin);
+  initSupabase();
   document.getElementById('login-name').addEventListener('keydown', function(e) { if(e.key==='Enter') handleLogin(); });
 
   // Auto-login
@@ -331,7 +340,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-async function handleLogin() {
+async function _doLogin() {
   const name = document.getElementById('login-name').value.trim();
   const dept = document.getElementById('login-dept').value;
   hideLoginErr();
