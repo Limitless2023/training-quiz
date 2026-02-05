@@ -176,17 +176,7 @@
 // ============================================
 const SUPABASE_URL = 'https://qdipqdysblxckgkcpnqj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXBxZHlzYmx4Y2tna2NwbnFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzMDA0NDIsImV4cCI6MjA4NTg3NjQ0Mn0.x0_AQz7tcfvt6s3CdyHfnsBFFDkY32IA1W-7eidxvXs';
-let sb;
-try {
-  const mod = window.supabase;
-  sb = (mod.createClient || mod.default?.createClient)(SUPABASE_URL, SUPABASE_ANON_KEY);
-} catch(e) {
-  console.error('Supabase SDK 加载失败:', e);
-  document.addEventListener('DOMContentLoaded', () => {
-    document.body.innerHTML = '<div style="padding:40px;text-align:center;color:red;">Supabase SDK 加载失败，请刷新页面重试</div>';
-  });
-}
-const supabase = sb;
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ============================================
 // 全局状态
@@ -269,6 +259,14 @@ async function handleLogin() {
     btn.textContent = '进入系统';
   }
 }
+
+// 页面加载后检查 SDK 状态
+window.addEventListener('load', () => {
+  if (!window.supabase) {
+    document.getElementById('login-error').textContent = 'SDK 未加载，请检查网络后刷新';
+    document.getElementById('login-error').classList.remove('hidden');
+  }
+});
 
 function showLoginError(msg) {
   const el = document.getElementById('login-error');
