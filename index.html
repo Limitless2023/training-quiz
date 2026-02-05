@@ -177,6 +177,7 @@
 const SUPABASE_URL = 'https://qdipqdysblxckgkcpnqj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXBxZHlzYmx4Y2tna2NwbnFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzMDA0NDIsImV4cCI6MjA4NTg3NjQ0Mn0.x0_AQz7tcfvt6s3CdyHfnsBFFDkY32IA1W-7eidxvXs';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+window.onerror = function(msg, url, line) { alert('JS错误: ' + msg + ' (行' + line + ')'); };
 
 // ============================================
 // 全局状态
@@ -216,7 +217,8 @@ async function handleLogin() {
   const name = document.getElementById('login-name').value.trim();
   const dept = document.getElementById('login-dept').value;
   const errorEl = document.getElementById('login-error');
-  errorEl.classList.add('hidden');
+  errorEl.textContent = '正在连接服务器...';
+  errorEl.classList.remove('hidden');
 
   if (!name) { showLoginError('请输入姓名'); return; }
   if (!dept) { showLoginError('请选择部门'); return; }
