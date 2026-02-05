@@ -237,10 +237,13 @@ body {
     </div>
   </div>
   <div class="container" style="padding-top:20px;padding-bottom:40px;">
-    <div id="questions-container" style="display:flex;flex-direction:column;gap:20px;"></div>
-    <div style="margin-top:24px;">
-      <button id="btn-submit" class="btn btn-primary" disabled style="font-size:16px;padding:14px;">提交答卷</button>
+    <div id="question-single" class="card" style="min-height:300px;"></div>
+    <div style="display:flex;gap:12px;margin-top:20px;">
+      <button id="btn-prev" class="btn btn-outline" style="flex:1;" onclick="navQuestion(-1)">← 上一题</button>
+      <button id="btn-next" class="btn btn-primary" style="flex:1;" onclick="navQuestion(1)">下一题 →</button>
     </div>
+    <!-- Question dots -->
+    <div id="question-dots" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:20px;"></div>
   </div>
 </div>
 
@@ -497,52 +500,105 @@ async function loadQuiz(quizId) {
   }
 }
 
+let currentQIdx = 0;
+
 function renderQuestions() {
-  const c = document.getElementById('questions-container');
-  c.innerHTML = '';
+  currentQIdx = 0;
+  renderDots();
+  renderCurrentQuestion();
+}
+
+function renderDots() {
+  const dots = document.getElementById('question-dots');
+  dots.innerHTML = currentQuestions.map((q, i) => {
+    const answered = userAnswers[q.id] !== undefined;
+    return `<button onclick="jumpQuestion(${i})" style="
+      width:28px;height:28px;border-radius:50%;border:1.5px solid ${answered?'var(--olive)':'#d4d4d8'};
+      background:${i===currentQIdx?'var(--olive)':answered?'var(--olive-light)':'#fff'};
+      color:${i===currentQIdx?'#fff':answered?'var(--olive)':'#a1a1aa'};
+      font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;
+      display:inline-flex;align-items:center;justify-content:center;transition:all .15s;
+    ">${i+1}</button>`;
+  }).join('');
+}
+
+function renderCurrentQuestion() {
+  const q = currentQuestions[currentQIdx];
+  const idx = currentQIdx;
+  const total = currentQuestions.length;
   const types = { single:'单选', multiple:'多选', truefalse:'判断', fill:'填空' };
   const letters = ['A','B','C','D','E','F'];
+  const opts = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options || []);
+  let optHtml = '';
 
-  currentQuestions.forEach((q, idx) => {
-    const opts = typeof q.options === 'string' ? JSON.parse(q.options) : (q.options || []);
-    let optHtml = '';
+  if (q.type === 'single') {
+    const sel = userAnswers[q.id];
+    optHtml = opts.map((o,i) => `
+      <label class="option-item${sel===i?' selected':''}" data-q="${q.id}" data-i="${i}">
+        <input type="radio" name="q_${q.id}" value="${i}" ${sel===i?'checked':''} onchange="pickSingle('${q.id}',${i})">
+        <span><b style="color:#71717a;margin-right:4px;">${letters[i]}.</b> ${esc(o)}</span>
+      </label>`).join('');
+  } else if (q.type === 'multiple') {
+    const sel = userAnswers[q.id] || [];
+    optHtml = opts.map((o,i) => `
+      <label class="option-item${sel.includes(i)?' selected':''}" data-q="${q.id}" data-i="${i}">
+        <input type="checkbox" value="${i}" data-mq="${q.id}" ${sel.includes(i)?'checked':''} onchange="pickMulti('${q.id}')">
+        <span><b style="color:#71717a;margin-right:4px;">${letters[i]}.</b> ${esc(o)}</span>
+      </label>`).join('');
+  } else if (q.type === 'truefalse') {
+    const sel = userAnswers[q.id];
+    optHtml = `<div style="display:flex;gap:12px;">
+      <button class="tf-btn${sel===true?' selected':''}" data-q="${q.id}" onclick="pickTF('${q.id}',true,this)">✅ 正确</button>
+      <button class="tf-btn${sel===false?' selected':''}" data-q="${q.id}" onclick="pickTF('${q.id}',false,this)">❌ 错误</button>
+    </div>`;
+  } else if (q.type === 'fill') {
+    const val = userAnswers[q.id] || '';
+    optHtml = `<input type="text" class="form-input" placeholder="请输入答案" value="${esc(val)}" oninput="pickFill('${q.id}',this.value)">`;
+  }
 
-    if (q.type === 'single') {
-      optHtml = opts.map((o,i) => `
-        <label class="option-item" data-q="${q.id}" data-i="${i}">
-          <input type="radio" name="q_${q.id}" value="${i}" onchange="pickSingle('${q.id}',${i})">
-          <span><b style="color:#71717a;margin-right:4px;">${letters[i]}.</b> ${esc(o)}</span>
-        </label>`).join('');
-    } else if (q.type === 'multiple') {
-      optHtml = opts.map((o,i) => `
-        <label class="option-item" data-q="${q.id}" data-i="${i}">
-          <input type="checkbox" value="${i}" data-mq="${q.id}" onchange="pickMulti('${q.id}')">
-          <span><b style="color:#71717a;margin-right:4px;">${letters[i]}.</b> ${esc(o)}</span>
-        </label>`).join('');
-    } else if (q.type === 'truefalse') {
-      optHtml = `<div style="display:flex;gap:12px;">
-        <button class="tf-btn" data-q="${q.id}" onclick="pickTF('${q.id}',true,this)">✅ 正确</button>
-        <button class="tf-btn" data-q="${q.id}" onclick="pickTF('${q.id}',false,this)">❌ 错误</button>
-      </div>`;
-    } else if (q.type === 'fill') {
-      optHtml = `<input type="text" class="form-input" placeholder="请输入答案" oninput="pickFill('${q.id}',this.value)">`;
-    }
-
-    const div = document.createElement('div');
-    div.className = 'card';
-    div.id = 'q-' + q.id;
-    div.innerHTML = `
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-        <span style="font-size:13px;color:#a1a1aa;">${idx+1}/${currentQuestions.length}</span>
+  document.getElementById('question-single').innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:20px;font-weight:700;color:var(--olive);">${idx+1}</span>
+        <span style="font-size:13px;color:#a1a1aa;">/ ${total}</span>
         <span class="badge badge-olive">${types[q.type]||q.type}</span>
       </div>
-      <p style="font-size:15px;font-weight:500;margin-bottom:14px;line-height:1.7;">${esc(q.question)}</p>
-      <div style="display:flex;flex-direction:column;gap:8px;">${optHtml}</div>
-    `;
-    c.appendChild(div);
-  });
+    </div>
+    <p style="font-size:16px;font-weight:500;margin-bottom:18px;line-height:1.8;">${esc(q.question)}</p>
+    <div style="display:flex;flex-direction:column;gap:8px;">${optHtml}</div>
+  `;
 
-  document.getElementById('btn-submit').onclick = handleSubmit;
+  // Update nav buttons
+  const prevBtn = document.getElementById('btn-prev');
+  const nextBtn = document.getElementById('btn-next');
+  prevBtn.disabled = idx === 0;
+  prevBtn.style.opacity = idx === 0 ? '0.4' : '1';
+
+  if (idx === total - 1) {
+    const allDone = Object.keys(userAnswers).length === total;
+    nextBtn.textContent = '提交答卷 ✓';
+    nextBtn.onclick = handleSubmit;
+    nextBtn.disabled = false;
+  } else {
+    nextBtn.textContent = '下一题 →';
+    nextBtn.onclick = () => navQuestion(1);
+    nextBtn.disabled = false;
+  }
+
+  renderDots();
+  window.scrollTo(0, 0);
+}
+
+function navQuestion(dir) {
+  const next = currentQIdx + dir;
+  if (next < 0 || next >= currentQuestions.length) return;
+  currentQIdx = next;
+  renderCurrentQuestion();
+}
+
+function jumpQuestion(idx) {
+  currentQIdx = idx;
+  renderCurrentQuestion();
 }
 
 function pickSingle(qid, i) {
@@ -575,7 +631,7 @@ function updateProgress() {
   const done = Object.keys(userAnswers).length;
   document.getElementById('quiz-progress-bar').style.width = (total?done/total*100:0)+'%';
   document.getElementById('quiz-progress-text').textContent = done+'/'+total;
-  document.getElementById('btn-submit').disabled = (done === 0);
+  renderDots();
 }
 function confirmExit() {
   if (Object.keys(userAnswers).length && !confirm('确定退出？答题进度将丢失。')) return;
