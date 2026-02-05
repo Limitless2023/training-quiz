@@ -476,10 +476,9 @@ async function loadQuizList() {
 
 // ============ Quiz ============
 async function loadQuiz(quizId) {
-  const container = document.getElementById('questions-container');
+  const container = document.getElementById('question-single');
   container.innerHTML = '<div style="text-align:center;padding:40px;color:#a1a1aa;">加载中...</div>';
   userAnswers = {};
-  document.getElementById('btn-submit').disabled = true;
 
   try {
     const { data: quiz, error: qe } = await db.from('quizzes').select('*').eq('id', quizId).single();
