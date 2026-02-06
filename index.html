@@ -557,6 +557,18 @@ async function loadQuiz(quizId) {
     currentQuestions = questions || [];
 
     document.getElementById('quiz-title-bar').textContent = quiz.title;
+    
+    // 恢复暂存的答题进度
+    try {
+      const draft = JSON.parse(localStorage.getItem('quiz_draft_' + quiz.id));
+      if (draft && draft.answers && Object.keys(draft.answers).length) {
+        userAnswers = draft.answers;
+        currentQIdx = draft.idx || 0;
+        const mins = Math.round((Date.now() - draft.time) / 60000);
+        console.log('[quiz] 恢复暂存进度，上次保存于 ' + mins + ' 分钟前');
+      }
+    } catch(e) {}
+    
     updateProgress();
     renderQuestions();
   } catch(err) {
@@ -696,9 +708,13 @@ function updateProgress() {
   document.getElementById('quiz-progress-bar').style.width = (total?done/total*100:0)+'%';
   document.getElementById('quiz-progress-text').textContent = done+'/'+total;
   renderDots();
+  // 暂存答题进度
+  if (currentQuiz) {
+    localStorage.setItem('quiz_draft_' + currentQuiz.id, JSON.stringify({ answers: userAnswers, idx: currentQIdx, time: Date.now() }));
+  }
 }
 function confirmExit() {
-  if (Object.keys(userAnswers).length && !confirm('确定退出？答题进度将丢失。')) return;
+  if (Object.keys(userAnswers).length && !confirm('确定退出？\n\n（答题进度已自动保存，下次进入可继续）')) return;
   navigateTo('list');
 }
 
@@ -736,6 +752,9 @@ async function handleSubmit() {
 
     await db.from('responses').insert(resps.map(r => ({ ...r, attempt_id: att.id })));
 
+    // 提交成功，清除暂存
+    localStorage.removeItem('quiz_draft_' + currentQuiz.id);
+    
     navigateTo('result', { score, correct, total, passingScore: currentQuiz.passing_score, questions: currentQuestions, answers: userAnswers, resps });
   } catch(err) {
     alert('提交失败: ' + (err.message || JSON.stringify(err)));
