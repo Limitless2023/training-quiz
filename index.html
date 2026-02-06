@@ -338,6 +338,8 @@ let currentQuiz = null;
 let currentQuestions = [];
 let userAnswers = {};
 let lastResultData = null;
+let quizStartTime = null;
+let elapsedBeforePause = 0; // 暂存前已用时间(秒)
 
 function initSupabase() {
   try {
@@ -544,6 +546,8 @@ async function loadQuiz(quizId) {
   const container = document.getElementById('question-single');
   container.innerHTML = '<div style="text-align:center;padding:40px;color:#a1a1aa;">加载中...</div>';
   userAnswers = {};
+  quizStartTime = Date.now();
+  elapsedBeforePause = 0;
 
   try {
     const { data: quiz, error: qe } = await db.from('quizzes').select('*').eq('id', quizId).single();
@@ -564,8 +568,9 @@ async function loadQuiz(quizId) {
       if (draft && draft.answers && Object.keys(draft.answers).length) {
         userAnswers = draft.answers;
         currentQIdx = draft.idx || 0;
+        elapsedBeforePause = draft.elapsed || 0; // 恢复已用时间
         const mins = Math.round((Date.now() - draft.time) / 60000);
-        console.log('[quiz] 恢复暂存进度，上次保存于 ' + mins + ' 分钟前');
+        console.log('[quiz] 恢复暂存进度，已用时 ' + elapsedBeforePause + ' 秒，上次保存于 ' + mins + ' 分钟前');
       }
     } catch(e) {}
     
@@ -708,9 +713,15 @@ function updateProgress() {
   document.getElementById('quiz-progress-bar').style.width = (total?done/total*100:0)+'%';
   document.getElementById('quiz-progress-text').textContent = done+'/'+total;
   renderDots();
-  // 暂存答题进度
-  if (currentQuiz) {
-    localStorage.setItem('quiz_draft_' + currentQuiz.id, JSON.stringify({ answers: userAnswers, idx: currentQIdx, time: Date.now() }));
+  // 暂存答题进度（包含已用时间）
+  if (currentQuiz && quizStartTime) {
+    const currentElapsed = elapsedBeforePause + Math.round((Date.now() - quizStartTime) / 1000);
+    localStorage.setItem('quiz_draft_' + currentQuiz.id, JSON.stringify({ 
+      answers: userAnswers, 
+      idx: currentQIdx, 
+      time: Date.now(),
+      elapsed: currentElapsed 
+    }));
   }
 }
 function confirmExit() {
@@ -745,8 +756,10 @@ async function handleSubmit() {
     });
 
     const score = total ? Math.round(correct/total*100) : 0;
+    const durationSeconds = elapsedBeforePause + Math.round((Date.now() - quizStartTime) / 1000);
+    
     const { data: att, error: ae } = await db.from('attempts')
-      .insert({ user_id: currentUser.id, quiz_id: currentQuiz.id, score, correct_count: correct, total })
+      .insert({ user_id: currentUser.id, quiz_id: currentQuiz.id, score, correct_count: correct, total, duration_seconds: durationSeconds })
       .select().single();
     if (ae) throw ae;
 
@@ -755,7 +768,7 @@ async function handleSubmit() {
     // 提交成功，清除暂存
     localStorage.removeItem('quiz_draft_' + currentQuiz.id);
     
-    navigateTo('result', { score, correct, total, passingScore: currentQuiz.passing_score, questions: currentQuestions, answers: userAnswers, resps });
+    navigateTo('result', { score, correct, total, passingScore: currentQuiz.passing_score, questions: currentQuestions, answers: userAnswers, resps, duration: durationSeconds });
   } catch(err) {
     alert('提交失败: ' + (err.message || JSON.stringify(err)));
   } finally {
@@ -764,8 +777,16 @@ async function handleSubmit() {
 }
 
 // ============ Result ============
+function formatDuration(seconds) {
+  if (!seconds || seconds < 0) return '';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  if (m > 0) return `${m}分${s}秒`;
+  return `${s}秒`;
+}
+
 async function showResult(data) {
-  const { score, correct, total, passingScore } = data;
+  const { score, correct, total, passingScore, duration } = data;
   const passed = score >= passingScore;
 
   const circle = document.getElementById('score-circle');
@@ -776,7 +797,8 @@ async function showResult(data) {
   document.getElementById('score-number').style.color = passed ? 'var(--success)' : 'var(--danger)';
   document.getElementById('result-status').textContent = passed ? '🎉 恭喜通过！' : '😔 未通过';
   document.getElementById('result-status').style.color = passed ? 'var(--success)' : 'var(--danger)';
-  document.getElementById('result-stats').textContent = `答对 ${correct}/${total} 题 · 合格线 ${passingScore} 分`;
+  const durationStr = duration ? ` · ⏱️ ${formatDuration(duration)}` : '';
+  document.getElementById('result-stats').textContent = `答对 ${correct}/${total} 题 · 合格线 ${passingScore} 分${durationStr}`;
   document.getElementById('analysis-wrap').classList.remove('open');
   document.getElementById('btn-analysis').textContent = '查看解析';
 
