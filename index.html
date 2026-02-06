@@ -758,9 +758,17 @@ async function handleSubmit() {
     const score = total ? Math.round(correct/total*100) : 0;
     const durationSeconds = elapsedBeforePause + Math.round((Date.now() - quizStartTime) / 1000);
     
-    const { data: att, error: ae } = await db.from('attempts')
+    // 先尝试带 duration_seconds，失败则不带重试
+    let att, ae;
+    ({ data: att, error: ae } = await db.from('attempts')
       .insert({ user_id: currentUser.id, quiz_id: currentQuiz.id, score, correct_count: correct, total, duration_seconds: durationSeconds })
-      .select().single();
+      .select().single());
+    if (ae && ae.message?.includes('duration_seconds')) {
+      // 字段不存在，不带 duration 重试
+      ({ data: att, error: ae } = await db.from('attempts')
+        .insert({ user_id: currentUser.id, quiz_id: currentQuiz.id, score, correct_count: correct, total })
+        .select().single());
+    }
     if (ae) throw ae;
 
     await db.from('responses').insert(resps.map(r => ({ ...r, attempt_id: att.id })));
