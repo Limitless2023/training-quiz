@@ -708,7 +708,7 @@ async function handleSubmit() {
   const done = Object.keys(userAnswers).length;
   if (done < total && !confirm(`还有 ${total-done} 题未答，确定提交？`)) return;
 
-  const btn = document.getElementById('btn-submit');
+  const btn = document.getElementById('btn-next');
   btn.disabled = true; btn.textContent = '提交中...';
 
   try {
